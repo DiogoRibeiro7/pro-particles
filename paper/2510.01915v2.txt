@@ -1,0 +1,3534 @@
+Predictively Oriented Posteriors
+Yann McLatchie⋆1 , Badr-Eddine Chérief-Abdellatif⋆2 , David T. Frazier⋆3 ,
+and Jeremias Knoblauch⋆1
+
+arXiv:2510.01915v2 [stat.ME] 20 Feb 2026
+
+1
+
+Department of Statistical Science, University College London
+2
+CNRS, Sorbonne Université
+3
+Department of Econometrics and Business Statistics, Monash University
+
+Abstract
+We advocate for a new statistical principle that combines the most desirable
+aspects of both parameter inference and density estimation. This leads us to the
+predictively oriented (PrO) posterior, which expresses uncertainty as a consequence
+of predictive ability. Doing so leads to inferences which predictively dominate both
+classical and generalised Bayes posterior predictive distributions: up to logarithmic factors, PrO posteriors converge to the predictively optimal model average.
+Whereas classical and generalised Bayes posteriors only achieve this rate if the model
+can recover the data-generating process, PrO posteriors adapt to the level of model
+misspecification. This means that they concentrate around the true model in the
+same way as Bayes and Gibbs posteriors if the model can recover the data-generating
+distribution, but do not concentrate in the presence of non-trivial forms of model misspecification. Instead, they stabilise towards a predictively optimal posterior whose
+degree of irreducible uncertainty admits an interpretation as the degree of model
+misspecification—a sharp contrast to how Bayesian uncertainty and its existing extensions behave. Lastly, we show that PrO posteriors can be sampled from by
+evolving particles based on mean field Langevin dynamics, and verify the practical
+significance of our theoretical developments on a number of numerical examples.
+
+Often motivated through its favourable decision-theoretic properties, the primary goal of
+Bayesian statistical inference is to quantify uncertainty about a parameter of interest given a
+set of prior beliefs (e.g. Robert et al., 2007). All other inferential tasks are derivatives of this
+primary directive. In the current era of black-box prediction models and the wide-spread
+adoption of machine learning techniques across science and society, this principle leads
+⋆
+
+All authors contributed equally. Corresponding author: j.knoblauch@ucl.ac.uk
+
+1
+
+to a fundamental tension with Bayesian statistical methods: in many modern problems,
+prediction is the primary goal of interest, with parameter inference being only a secondary
+concern. Because much of Bayesian methodology is centered on parameter inference, its
+predictive performance quickly falters outside of the narrow conditions that make Bayesian
+belief updates optimal (see Zellner, 1988; Aitchison, 1975). In other words, the practice of
+Bayesian statistics is overwhelmingly focused on parameter inference, not prediction.
+One of the clearest ways in which this manifests is posterior collapse: as data accumulate, the Bayes posterior generally concentrates around a single parameter value (see e.g
+van der Vaart, 1998, Section 10.2). This is sensible for parameter inference when
+uncertainty in a parameter of interest arises due to missing observations. If a
+complete population is observed, then the parameter of interest can be assumed
+to be known precisely.
+(Fong et al., 2023)
+In the context of prediction however, posterior collapse is generally not desirable: it implies
+that as the sample size increases, marginalising over the Bayes posterior ceases to function
+as a genuine combination of individual predictive distributions. Instead of averaging over
+models, such predictive distributions essentially predict from a single model. Crucially,
+this behaviour persists even for generalised Bayesian methods that replace a likelihoodbased approach with a loss-based belief update (Bissiri et al., 2016; Jiang and Tanner,
+2008; Zhang, 2006; Knoblauch et al., 2022; Alquier, 2024; Syring and Martin, 2019; Martin
+and Syring, 2022). As a result, the posterior predictives obtained from both classical and
+generalised Bayes approaches quickly resemble those obtained from a point estimator as
+sample size grows (McLatchie et al., 2025).
+To better understand the impact of this phenomenon on prediction, it is useful to
+2
+
+distinguish between two regimes. When a statistical model is well-specified so that the
+data-generating process is recoverable by a singular parameter value, posterior concentration is the desired outcome: as more data accumulates, uncertainty contracts around the
+true parameter, and the posterior predictive distribution is well-calibrated. In practice
+however, statistical analysis is almost always subject to some degree of model misspecification. In this regime, no single parameter value is capable of describing the data generating
+process, so that the posterior predictives based on standard or generalised Bayesian posteriors become poorly calibrated (Syring and Martin, 2019). Importantly, this issue is not
+caused by obtaining predictive distributions through the marginalisation of a posterior,
+but by marginalising over a posterior which collapses to a point mass. This in turn provides strong motivation for methods whose parameter uncertainty can be guaranteed not
+to collapse to a point mass when this
+is appropriate and desirable, since [...] some uncertainty always remains about
+the true (idealised) distribution, no matter how much data are observed.
+(Miller and Dunson, 2019)
+In this paper, we synthesise the above discussion into a new statistical principle for
+inference that results in a predictively oriented (PrO) posterior. The resulting approach is
+distinct from existing inference frameworks in two main ways: first, it treats prediction as
+its main goal without requiring a black box approach, while naturally inducing uncertainty
+quantification for a parameter of interest as a secondary inferential outcome; second, it
+is adaptive: the PrO posterior collapses to a point mass only in the appropriate setting
+where the model is well-specified. When the model is misspecified however, PrO posteriors
+acknowledge that no single parameter is sufficient for capturing the true data-generating
+process, and yield an irreducible level of uncertainty, even with increasing sample size.
+3
+
+Conceptually, PrO posteriors represent a useful intermediary between existing statistical paradigms and compromise between the two tenants of data modelling and algorithmic
+modelling sub-cultures in statistics that were famously identified by Breiman (2001). In
+practical terms, this means that PrO posteriors reconcile parameter inference and predictive inference in situations where the choice between either is difficult. Intriguingly, they do
+so through a posterior that expresses epistemic uncertainty in a way that is meaningfully
+distinct from standard and generalised Bayesian approaches.
+We strengthen this intuitive appeal by demonstrating that PrO posteriors possess
+strong theoretical guarantees and an algorithmically viable approach for computation. To
+do so, we first set the scene and formally introduce PrO posteriors (Section 1). Next, we
+investigate the nature of the uncertainty which they confer, show that they are adaptive to
+model misspecification, and explain their broader place in the statistical sciences (Section
+2). From there, we go on to formally establish that PrO posteriors predictively dominate
+classical and generalised Bayesian posteriors, and characterise their asymptotic behaviour
+(Sections 3 and 8). We end by introducing a sampling algorithm which can be used to
+sample from PrO posteriors (Section 6), exploring their empirical performance on a range
+of examples (Section 5), and providing a discussion of our findings (Section 7).
+
+1
+
+Background
+
+Throughout, we consider data x1:n = (x1 , . . . , xn ) for xi ∈ X and i = 1, . . . , n. We assume that x1:n was generated from an unknown distribution P0 . With this, we denote
+expectations of a function f : X → R with respect to P0 by E[f (X)] or by EX∼P0 [f (X)]
+if we wish to emphasise the sampling distribution. To learn about P0 from x1:n , we follow
+the tenants of classical Bayesian analysis, and posit a model class MΘ := {Pθ : θ ∈ Θ}
+4
+
+and a prior Π ∈ P(Θ) over elements of MΘ , where P(Θ) denotes the space of probability
+measures on Θ. Instead of attempting to learn the best possible parameter, as in classical
+(or even generalised) Bayesian inference, we focus on learning the best possible predictive
+distribution. To rigorously formulate this optimality, we use scoring rules.
+Definition 1 (Scoring Rule). Let S : P(X ) × X → R ∪ {∞} be an extended real-valued
+function. Then S is a proper scoring rule, relative to a class P, if:
+(i) the expected score S(P, P ′ ) := EX∼P ′ {S(P, X)}, is finite for some P, P ′ ∈ P;
+(ii) S(P ′ , P ′ ) ≤ S(P, P ′ ) for all P, P ′ ∈ P, so that S induces the statistical divergence
+DS (P, P ′ ) := S(P, P ′ ) − S(P ′ , P ′ ) ≥ 0 for which DS (P, P ′ ) = 0 ⇐⇒ P = P ′ .
+Scoring rules are foundational statistical objects concerned with measuring accuracy
+of predictive distributions (see, e.g., Gneiting and Raftery, 2007). Given a target distribution P0 , a candidate predictive distribution P is judged to be more accurate than
+an alternative candidate P ′ by an expected score S if and only if S(P, P0 ) ≤ S(P ′ , P0 ).
+The logarithmic scoring rule, given by S(P, x) = − log dP (x), is the most common example and is related to the Kullback-Leibler divergence via KL(P ′ ∥P ) = DS (P, P ′ ). Other
+popular choices include the spherical score, cumulative ranked probability score (CRPS),
+the energy score, and squared maximum mean discrepancy (MMD), which for a kernel function k : X × X → R+ and the Dirac measure at x denoted by δx is given by
+MMD2 (P, δx ) := EX∼P,X ′ ∼P [k(X, X ′ )] + k(x, x) − 2EX∼P [k(X, x)].
+
+1.1
+
+Key Ideas
+
+The Bayes posterior Πn and its associated posterior predictive distribution are
+R
+dPθ (x1:n )dΠ(θ)
+Πn (A) := RA
+,
+dPθ (x1:n )dΠ(θ)
+Θ
+5
+
+Z
+PΠn :=
+
+Pθ dΠn (θ).
+Θ
+
+In this set-up, the predictive distribution PΠn is derived as a consequence of the Bayes
+posterior Πn —which itself is primarily geared towards quantifying the uncertainty about
+which parameter θ best describes the observed data x1:n . In this paper, we reverse that
+R
+order: the posterior predictive PQ := Θ Pθ dQ(θ) is the object of interest, and we obtain
+a predictively oriented (PrO) posterior as the measure Qn which quantifies uncertainty
+about θ in a manner that is optimal for prediction.
+The key motivation for this novel methodology is that while PΠn is predictively optimal if P0 ∈ MΘ (see Aitchison, 1975), this optimality breaks down once P0 ∈
+/ MΘ .
+Indeed, the Bayes posterior predictive can yield extremely poor predictive performance
+under even seemingly innocuous model misspecification (see Grünwald and van Ommen,
+2017). Though this is well-understood, robust Bayesian methods usually still treat prediction as a second-order concern, and are more concerned with parameter uncertainty. One
+family emblematic of this kind of research are Gibbs posteriors (e.g. Zhang, 2006; Jiang and
+Tanner, 2008; Jewson et al., 2018; Knoblauch et al., 2018; Giummolè et al., 2019; Syring
+and Martin, 2019; Schmon et al., 2020; Chérief-Abdellatif and Alquier, 2020; Matsubara
+et al., 2022; Martin and Syring, 2022; Matsubara et al., 2023; Altamirano et al., 2023a,b;
+Duran-Martin et al., 2024; McLatchie et al., 2025; Laplante et al., 2025; Frazier et al.,
+2025). Many of these posteriors are based on an scoring rule evaluated on the sample, and
+for A ⊆ Θ are given by
+
+R
+P
+exp − λnn ni=1 S(Pθ , xi )
+†
+A
+ λn Pn
+Qn (A) := R
+exp
+−n
+i=1 S(Pθ , xi )
+Θ
+
+dΠ(θ)
+,
+dΠ(θ)
+
+Z
+PQ†n :=
+
+Pθ dQ†n (θ),
+
+Θ
+
+where the tuning parameter λn is often called the learning rate. Using Gibbs posteriors for
+parameter inference is often called generalised Bayesian inference because they recover the
+Bayes posterior for the special case where S is the logarithmic scoring rule and λn = n. To
+contrast them with PrO posteriors, it will prove instructive to rewrite Gibbs posteriors as
+6
+
+the outcome of the following variational optimisation problem:
+)
+(
+n Z
+X
+λ
+n
+S(Pθ , xi )dQ(θ) + KL(Q∥Π) .
+Q†n = argmin
+n i=1
+Q∈P(Θ)
+
+(1)
+
+The above representation is well-established (see e.g., Theorem 1 of Knoblauch et al., 2022),
+and makes clear that all Gibbs posteriors—including the Bayes posterior—seek to minimise
+the averaged scoring rule, rather than the score of the averaged model. This in turn means
+that the inferences they produce are targeted towards finding the parameter, rather than
+the predictive, which best describes the data. Crucially, these two goals do not overlap
+outside of well-specified models, where P0 ∈ MΘ (see Aitchison, 1975). The result is that
+in empirical applications, Bayes posteriors and Gibbs posteriors alike often deliver poorly
+performing posterior predictives.
+What then should we do if we wish to conduct inference on model parameters, but wish
+to ensure that the prediction made under the model are accurate, while also suspecting
+that P0 ∈
+/ MΘ ? We argue that, while the parameters of interest remain θ ∈ Θ, we should
+ensure that the beliefs are generated in such a way that the resulting posterior predictive
+R
+PQ := Pθ dQ(θ) is accurate. To do so, we must score the predictive PQ directly, which
+gives rise to what we shall call the predictively oriented (PrO) posterior given by
+(
+)
+n
+λn X
+S (PQ , xi ) + KL(Q∥Π) .
+Qn = argmin
+n i=1
+Q∈P(Θ)
+
+(2)
+
+The PrO posterior can also be represented explicitly through a fixed point equation as
+(
+)
+n
+λn X δS(PQ , xi )
+dQn (θ) ∝ dΠ(θ) · exp −
+(θ) ,
+n i=1
+δQ
+Q=Qn
+where
+
+δS(PQ ,x)
+denotes the functional derivative of S(PQ , x) with respect to Q evaluδQ
+Q=Qn
+
+ated at Q = Qn (see also Appendix B.1). While generally of limited use for gaining intuition
+about its behaviour, this representation illustrates that the PrO posterior is generally not
+a coherent belief update in the sense of Bissiri et al. (2016).
+7
+
+1.2
+
+Related Work
+
+Approaches and ideas conceptually related to PrO posteriors have appeared in the machine
+learning literature under a variety of names and motivations. One prominent line of work is
+rooted in PAC-Bayesian analyses that introduce diversity into an ensemble such as weighted
+majority voting, whereby a set of classifiers are assigned weights, and the final prediction
+is the label supported by the largest total weight across the ensemble (Lacasse et al.,
+2006; Laviolette et al., 2011; Germain et al., 2015; Laviolette et al., 2017; Lorenzen et al.,
+2019; Masegosa et al., 2020; Viallard et al., 2021; Wu et al., 2021; Wu and Seldin, 2022;
+Vignault et al., 2023; Theisen et al., 2024). Related PAC-Bayesian perspectives extending
+beyond majority voting have also been explored by Audibert (2004), Ortega et al. (2022),
+Hauptvogel and Igel (2024) and Pitas et al. (2025).
+More directly related is the recent work of Shen et al. (2025), which proposes the special
+case of (2) with the MMD in the context of misspecified deterministic simulation models
+as a heuristic approach “for arresting the collapse of predictive uncertainty” to avoid that
+“posterior predictions become deterministic.” This is very different from what we study in
+the remainder: Shen et al. (2025) make no attempt at advocating for the general formulation
+in (2) as a new general-purpose methodology for parameter and predictive inference, and
+do not provide any rigorous investigation into its behaviour.
+Several alternative heuristic variational approaches targeting objectives similar to (2)
+have also been suggested elsewhere (see Wang and Liu, 2019; Sheth and Khardon, 2020;
+Wei et al., 2021; Jankowiak et al., 2020b,a; Lai and Yao, 2024). Amongst these, the most
+relevant for our remaining developments are two papers studying PAC-Bayesian guarantees
+for the special case of an approximated logarithmic scoring rule termed PAC2T -variational
+posterior (Masegosa, 2020) and PACm -Bayes (Morningstar et al., 2022). Despite superfi-
+
+8
+
+cial similarities, our development differs significantly from these precursors in both form
+and function. Most critically, this vein of prior work does not define or study the PrO
+posterior. Instead, the focus is on deriving computationally efficient methods for Bayesian
+deep learning via variational approximation algorithms informed by objectives similar to
+(2), as well as the derivation of PAC-Bayes bounds to justify these algorithms.
+In summary, previous contributions studying objectives and objects with similarities to
+(2) are limited in scope, motivated heuristically, and do not explore the promise of PrO
+posteriors as a new and universally applicable inferential methodology. In the remainder, we
+rectify this: we provide practically meaningful guarantees for PrO posteriors and study
+the nature of the uncertainty they communicate. Based on our findings, we argue that
+PrO posteriors provide a new form of uncertainty quantification, and are uniquely suited
+to address the predictively oriented inferences that scientists are increasingly demanding
+from the statistical sciences.
+
+2
+
+A Motivating Example
+
+Throughout, robustness to model misspecification is an important motivation in our development of PrO posteriors. Robustness is also one of the key drivers behind many Gibbs
+posteriors, usually to guard against Huber contamination (Altamirano et al., 2023a,b; Matsubara et al., 2022, 2023; Laplante et al., 2025; Duran-Martin et al., 2024; Marusic et al.,
+2025) . Whenever the nature of misspecification is more complicated than can be described
+through an outlier model of the Huber type, these approaches fail to provide robustness.
+To contrast this behaviour with that of PrO posteriors, we consider a linear regression
+model which for xi ∈ R, zi ∈ R2 and i = 1, . . . n is given by
+xi = zi⊤ θ + εi .
+9
+
+Figure 1: The Gibbs and PrO posterior distributions under different forms of model misspecification. Coefficients θ1 , θ2 are shown as black crosses, with θ1 = θ2 under trivial misspecification.
+
+Here, we make two assumptions: the parameter of interest θ ∈ R2 is fixed but unknown,
+iid
+
+and εi ∼ N (0, σ 2 ) for a fixed and known noise level σ 2 . Relative to this model for the data,
+we explore three different forms of misspecification:
+iid
+
+(T) Heavy-tailed observation noise εi ∼ t3 (0, σ 2 );
+iid
+
+(CR) Random coefficients θ2 = 2 · (−1)ξi , with ξi ∼ Ber(1/2) sampled from a Bernoulli;
+iid
+
+iid
+
+(NT) The combined effect of εi ∼ t3 (0, σ 2 ) and θ2 = 2 · (−1)ξi with ξi ∼ Ber(1/2).
+The first setting constitutes a form of trivial (T) misspecification: the inflated noise
+leads to overconfident inferences, but does not compromise the meaning of the model
+parameter θ. In line with this, we would expect both Gibbs and PrO posteriors to perform
+reasonably well at identifying the general location of this parameter. In contrast, the
+10
+
+second setting fundamentally compromises the interpretation of inferences on θ. However, it
+allows convex recovery (CR): a 2-component mixture over the misspecified linear regression
+model recovers the actual data-generating process. While Gibbs posteriors will be adversely
+affected by this setting, PrO posteriors will be able to recover the true data-generating
+process exactly. The last setting merges both of the previous complications, and constitutes
+a form of non-trivial (NT) misspecification: not even convex combinations of the original
+model class will recover the true data-generating process exactly. Still, we expect that the
+PrO posterior will perform well, since a convex combination of the original model will get
+us very close to the true data-generating mechanism.
+
+2.1
+
+Numerical Results
+
+Our numerical results confirm these intuitions, and are summarised in Figures 1, where we
+compare posterior inferences for Gibbs and PrO posteriors based on the MMD in all three
+settings, with implementation details and further information deferred to Appendix D.4.
+Unlike the Gibbs posterior, the PrO posterior performs uncertainty quantification for both
+
+Figure 2: Mean and standard error of Gibbs posterior’s predictive loss relative to PrO posteriors
+evaluated using negative log likelihood (NLL), squared MMD (MMD2 ), and Continuous Ranked
+Probability Score (CRPS) on a test set for different forms of misspecification.
+
+11
+
+convex recovery and the non-trivially misspecified setting by accounting for the distortions
+of the data-generating mechanism relative to the posited simple linear regression. Even in
+the trivially misspecified setting, the PrO posterior’s parameter uncertainty seems a more
+appropriate reflection of the true underlying uncertainty. The reason is that the PrO
+posterior is driven by its implied predictive distribution, and therefore is more sensitive to
+the inflated noise in the trivially misspecified setting. Figure 2 translates the impact of
+parameter uncertainty into predictive performance, and shows an even clearer advantage
+of the resulting PrO posterior predictive distributions.
+
+2.2
+
+A Taxonomy of Model Misspecification
+
+Based on these observations, it will prove useful to rigorously define this so far intuitively
+motivated taxonomy of model misspecification. As we shall see later, doing so will prove
+critical for comparing the behaviours of Gibbs and PrO posteriors.
+Definition 2. We say that MΘ is well-specified if P0 ∈ MΘ , and misspecified if P0 ∈
+/ MΘ .
+Further, we call a misspecified MΘ trivially misspecified with respect to a scoring rule S if
+there exists θ′ ∈ Θ so that inf Q∈P(Θ) S(PQ , P0 ) ≥ S(Pθ′ , P0 ), and non-trivially misspecified
+if S(PQ , P0 ) < inf θ∈Θ S(Pθ , P0 ) for some Q ∈ P(Θ). Further, we say that a misspecified
+MΘ allows convex recovery if there exists Q ∈ P(Θ) such that PQ = P0 .
+To aid understanding, Figure 3 provides an illustration of these different forms of model
+misspecification. What we call non-trivial misspecification is a generalisation of what
+Grünwald and van Ommen (2017) termed “bad misspecification”. Convex recovery is a
+special case of this, and implies that the extended model class {PQ : Q ∈ P(Θ)} obtained
+via convex combinations of MΘ contains P0 .
+
+12
+
+MΘ
+
+MΘ
+Pθ ⋆
+
+Pθ1
+
+Pθ 1
+
+Pθ ⋆
+
+PQ ⋆
+
+Pθ⋆ = arg minθ S(Pθ , P0 )
+
+Pθ 2
+
+P0
+
+P0
+
+(a) Trivial misspecification.
+
+MΘ
+
+P0 = PQ⋆
+
+(b) Non-trivial misspecification.
+
+Pθ 2
+
+(c) Convex recovery.
+
+Figure 3: Illustration of key ideas introduced in Definition 2. Panel (a) depicts trivial model misspecification: relative to the chosen score S, a singular element of MΘ provides the best fit for P0 ,
+and there is no benefit to averaging. In contrast, Panel (b) illustrates the case of non-trivial model
+misspecification: constructing Q⋆ := argminQ S(PQ , P0 ) as a convex combination of Pθ1 and Pθ2
+yields a better predictive for P0 than any one point in MΘ . Panel (c) provides pictorial intuition
+for convex recoverability: it is the special case where PQ⋆ and P0 coincide.
+
+3
+
+Formal Guarantees
+
+The motivating example in the previous section shows empirically that PrO posteriors
+adapt to model misspecification: when the model is well-specified, they behave like Gibbs
+or Bayes posteriors, but deliver fundamentally different behaviours when the model is misspecified. In this section, we clarify this adaptivity and formally show that PrO posteriors
+are predictively superior to Bayes and Gibbs posteriors. Throughout, we will often use
+the shorthand predictive scoring rule to refer to a scoring rule S(PQ , x) applied directly to
+R
+score a predictive distribution PQ = Pθ dQ(θ). Additionally, for two sequences an , bn we
+write an ≲ bn to mean that an ≤ Cbn for all n large enough and some universal constant
+C > 0. Further, we say that an ≍ bn if an ≲ bn and bn ≲ an .
+
+13
+
+3.1
+
+Regularity conditions
+
+Throughout, we impose a minimal convexity assumption satisfied by virtually all scoring
+rules of interest—including kernel scoring rules and the logarithmic score.
+Assumption 1. The scoring rule S(·, x) is convex in its first argument for all x ∈ X , and
+its corresponding divergence DS is jointly convex in both arguments.
+In addition to convexity of the scoring rule, we require regularity conditions on their
+expectations. While less restrictive conditions can be obtained, the following regularity
+condition is easy to state, and suffices for our theoretical analysis.
+Assumption 2. Let rn be a positive sequence such that rn → 0 as n → ∞ and PΠ (Θ) :=
+
+
+P
+{Q ∈ P(Θ) : Q ≪ Π}, it holds that E supQ∈PΠ (Θ) n1 ni=1 S(PQ , Xi ) − S(PQ , P0 ) ≲ rn .
+As the speed at which the sequence rn decays depends on the scoring rule, we state it
+in full generality. For the special case of bounded scoring rules, rn will always be of order
+log(n)/n1/2 . Further, even for unbounded scoring rules such as the logarithmic scoring rule,
+the rate log(n)/n1/2 is achievable at the expense of additional restrictions and technicalities
+using techniques such as those in Ghosal and Van Der Vaart (2001). For further discussion
+and details, see Section 8.
+Though Assumption 2 is satisfied by many scoring rules, more interpretable alternatives
+exist. In particular, Assumption 1 and Jensen’s inequality imply that
+Z
+S (PQ , x) =
+
+S (Pθ , x) dQ(θ) − ∆(Q, x),
+
+(3)
+
+for all x ∈ X and some non-negative remainder term ∆ : P(Θ) × X → R+ . In many
+cases, such as the log predictive score, this remainder does not simplify further. However,
+kernel scoring rules (Gneiting et al., 2007) can be written as an expectation over a product
+14
+
+measure in Θ for any x ∈ X (see Lemma 2 in Appendix B), so that the predictive score is
+Z
+S (PQ , x) =
+
+k
+
+{S(Pθ1 , xi ) − δ(xi ; θ1 , . . . , θk )} dQ (θ1:k );
+|
+{z
+}
+=: L(θ1:k , x)
+
+k
+
+Q (θ1:k ) =
+
+k
+O
+
+Q(θj ).
+
+(4)
+
+j=1
+
+for some function δ : X × Θk → R+ with k ∈ N+ . This representation allows us to replace
+Assumption 2 with more interpretable and testable conditions.
+Assumption 2′ . The predictive scoring rule satisfies (4) and for any φ ∈ Θ, if θ1:k =
+(φ, φ, . . . φ), then δ(x; φ, . . . , φ) = 0, for all x ∈ X . Further, for any λ ∈ R, L(θ1:k ) :=
+i
+R h
+1 Pn
+2 2
+E[L(θ1:k , X)], and some C > 0, E eλ{L(θ1:k )− n i=1 L(θ1:k ,Xi )} dΠk (θ1:k ) ≤ eλ C /n .
+Here, the first part of Assumption 2′ is a mild regularity condition, and automatically
+satisfied by kernel scoring rules for k = 2. The second part imposes a Hoeffding-type
+moment condition that generally has to be verified, and which is very similar to those
+clasically arising in the study of Gibbs posteriors. Though easier to verify, certain scores
+such as the logarithmic scoring rule violate Assumption 2′ , so that the more abstract
+conditions imposed by Assumption 2 must be maintained instead.
+
+3.2
+
+Key Results
+
+Having established the necessary regularity conditions, we proceed by studying the impact
+of different misspecification regimes on PrO posteriors Qn , and compare them to Gibbs
+posteriors Q†n constructed using the same scoring rule. To state our results, we define
+
+
+
+
+log(n)/n1/2 ,
+if Assumption 2′ is satisfied;
+νn =
+(5)
+
+
+
+max{log(n)/n1/2 , r }, if Assumption 2 is satisfied,
+n
+
+and take λn ≍ n1/2 up to logarithmic factors. This allows us to state our first key result
+on the predictive performance of PrO posteriors.
+15
+
+Theorem 1. Assumption 1 is satisfied, and Assumption 2 or 2′ holds. Under prior regularity conditions, the following holds for n sufficiently large:
+(WS) If the model is well-specified, E [DS (PQn , P0 )] − E[DS (PQ†n , P0 )] ≲ νn ;
+(NT) If the model is non-trivially misspecified, E [DS (PQn , P0 )] < E[DS (PQ†n , P0 )],
+and E [DS (PQn , P0 )] − inf Q∈P(Θ) DS (PQ , P0 ) ≲ νn ;
+(CR) If the model allows convex recovery, then E [DS (PQn , P0 )] ≲ νn .
+Theorem 1 evaluates the PrO posterior predictive PQn and its relationship to the Gibbs
+posterior predictive PQ†n in terms of the divergence DS induced by the score chosen to
+construct both posteriors. (WS) concerns the well-specified setting. Here, Gibbs posteriors
+typically concentrate towards the correct model parameter at the usual log(n)/n1/2 rate.
+As the result shows, the difference in predictive performance between PrO posteriors
+and Gibbs posteriors in this setting is small, and usually of order log(n)/n1/2 . For the
+case of non-trivial misspecification studied in (NT), the situation changes: now, the PrO
+posteriors strictly outperforms Bayes and Gibbs posteriors. In particular, this performance
+gap will be of order inf θ∈Θ DS (Pθ , P0 ) − inf Q∈P(Θ) DS (PQ , P0 ), which grows larger as the
+benefits of averaging over MΘ become more pronounced. To confirm this intuition, the
+result in (CR) considers the special case of convex recovery, where inf Q∈P(Θ) DS (PQ , P0 ) = 0.
+As expected, the PrO posterior recovers the true data-generating process at rate νn . In
+contrast, the Gibbs posterior predictive PQ†n never recovers the true data generating process
+in this setting, and instead collapses onto a point mass at θ⋆ = argminθ∈Θ DS (Pθ , P0 ).
+Lastly, the result also shows that the only case in which the choice of scoring rule has
+a notable impact is the non-trivially misspecified case: when the model satisfies convex
+recovery or is well-specified, any scoring rule will recover the same predictive distribution
+
+16
+
+for n sufficiently large. This suggests that PrO posteriors are generally less sensitive to
+the choice of scoring rule than Gibbs posteriors.
+The above result validates the use of PrO posteriors whenever predictive performance
+matters, but sheds little light on the qualitative behaviour of PrO posteriors as expressions
+of parameter uncertainty. Given that they no longer collapse to a point mass, is it safe
+to assume that they behave well as the sample size increases? Indeed, in the context of
+parameter inference, convergence to a limiting distribution as more data are observed is
+fundamental to ensure that one is learning a well-defined target. Our second result assuages
+these concerns, and shows that PrO posteriors do indeed converge to a well-defined target
+given by the predictively optimal model average Q∗ := argminQ∈P(Θ) DS (PQ , P0 ). Below,
+we state this convergence relative to a distance d defined on probability distributions and
+dependent on additional regularity conditions (see Section 8 for details).
+Corollary 1. Assumption 1 and Assumption 2 or 2′ holds. Under convex recovery and
+additional regularity conditions, there exists α > 0 so that E[d(Qn , Q⋆ )] ≤ C(log n/n1/2 )1/α .
+While the above result relies on convex recovery, our empirical results strongly suggest
+that this is an artifact of our proof technique, and that this behaviour should be expected
+to hold under much weaker conditions.
+
+4
+
+Parameter Uncertainty of the PrO Posterior
+
+In his prescient contribution, Breiman (2001) identified two divergent sub-cultures within
+statistical science. On the one hand, he spoke of a data modelling culture interested in handtailoring interpretable models for a given research problem and thus strongly associated
+to classical statistical concerns. On the other hand, he identified an increasing interest in
+
+17
+
+machine learning and the associated algorithmic modelling culture focused on predictive
+accuracy and black box density estimation techniques.
+We believe that PrO posteriors constitute a meaningful and novel attempt to incorporate the most useful aspects of both modelling cultures: they rely on interpretable parameters born out of the data modelling culture, but gear inference towards predictive accuracy.
+When both interpretability and predictive performance are relevant, practitioners are often
+forced into a fraught choice: should they prefer an interpretable but predictively suboptimal
+model; or should they resort to a black box model that will improve predictive performance
+at the cost of interpretability and meaningful guarantees? PrO posteriors circumvent this
+binary choice. Figure 4, illustrates this by using body measurements for different penguin
+species in the Palmer Archipelago (Horst et al., 2020). Here, the PrO posterior not only
+identifies the data set’s fundamental structure by correctly discovering the three different
+species in it, but also produces a predictive distribution of excellent quality. This behaviour
+is desirable for a wide array of scientific problems, and yields an altogether new kind of
+epistemic uncertainty which differs starkly from what is currently attainable in classical
+Bayesian inference and its generalisations.
+
+4.1
+
+The Origin of PrO Posterior Uncertainty
+
+It is worth contrasting PrO posterior uncertainty with a set of ideas and methods known
+under the umbrella of predictive Bayes (see e.g. Berti et al., 2021; Fortini and Petrone,
+2020, 2023; Fong et al., 2023; Fortini and Petrone, 2025). Despite similar sounding names,
+the roles played by prediction in the construction of PrO posteriors and predictive Bayes
+approaches are fundamentally different: the PrO posterior is geared towards learning
+the predictive from seen data, predictive Bayes approaches instead posits a sequence of
+
+18
+
+Figure 4: Palmer penguins example. We plot both the kernel density estimate (KDE) and the
+PrO posterior predictive overlaid with the data (left, middle), as well as the PrO posterior
+overlaid with the average measurements for each of the three penguin species in the data set (right).
+For inference with the PrO posterior, we use a bivariate Gaussian model. The results show that
+the PrO posterior not only correctly identifies the three penguin species in the data (right), but
+also provides a predictive distribution which can fit the observed data as well as a kernel density
+estimator. For further details, see Appendix D.2.
+
+predictive distributions to model the unseen data. Put differently, while PrO posteriors
+make the predictive distribution the object of posterior inference, predictive Bayes methods
+specify predictive distributions instead of priors and likelihoods.
+In fact, priors and likelihoods can be recast as a convenient way of specifying a sequence
+of predictive distributions on unseen data: formalising this in a recent read paper at the
+Royal Statistical Society, Fong et al. (2023) used Doob’s Theorem to argue that the source
+of Bayesian uncertainty is unseen data. Taken to its logical extreme, if we observe the entire
+population P0 , no epistemic uncertainty remains, and Bayesian methods become perfectly
+confident in the conclusions they draw from data. In fact, this same logic applies to various
+generalisations of Bayesian uncertainty, including Gibbs posteriors.
+But should epistemic uncertainty indeed vanish as more data are observed? Though it
+19
+
+may be tempting to answer this question in the affirmative, doing so would overlook an
+important practical limitation: for interpretability and computational feasibility, statistical
+methods express epistemic uncertainty relative to a parameter θ ∈ Θ. Crucially, this
+implies that the only setting in which larger sample sizes should lead to a collapse of
+parameter uncertainty is the rare situation where a singular value of θ ∈ Θ can summarise
+all properties of P0 that we are interested in. In other words, the epistemic uncertainty
+conferred by (generalised) Bayesian methods is constructed relative only to a fixed model
+class, not with respect to the choice of model class itself, which renders inference and
+uncertainty quantification unreliable whenever P0 ∈
+/ MΘ .
+The epistemic uncertainty produced by PrO posteriors is more expansive: it delivers
+both parameter uncertainty and uncertainty about the inherent ability of MΘ to adequately
+explain the observed data. Indeed, when the model is misspecified, PrO posteriors generally do not collapse to a single element of MΘ as more data are observed. When P0 ∈
+/ MΘ ,
+they instead stabilise towards an irreducible form of uncertainty that originates in the fact
+that no single value of θ ∈ Θ is sufficient to summarise all properties of P0 we take an
+interest in. This is epistemic uncertainty in its truest form: because the model is misspecified, we should be uncertain about its ability to represent the observed data, even if we
+had observed the entire population P0 .
+But what if the model is well-specified, so that P0 ∈ MΘ ? In this case, the epistemic
+uncertainty produced by Bayes and Gibbs posteriors is sufficient: there exists some θ ∈ Θ
+that allows us to completely describe the observed data—and as more data accumulates,
+we should become increasingly certain about the ability of this value to correctly explain
+the data, and hence P0 . Remarkably, for this special case where the model is well-specified,
+PrO posteriors do behave like Bayes and Gibbs posteriors, and likewise concentrate to-
+
+20
+
+wards the parameter value that recovers P0 .
+
+4.2
+
+Key Comparisons
+
+To round off the above discussion, we contrast the behaviour of PrO posteriors to that
+of several other related approaches like standard Bayesian inference, Martingale posteriors
+(Fong et al., 2023), and mixture models. We do so using the golf putting data of Gelman
+and Nolan (2002), which compares the probability of a successful put (x ∈ {0, 1}) by
+professional golfers to the distance (z ∈ R) from which the shot was made for n = 5, 988
+shots. Throughout, we fit this data using the logistic regression model
+
+1−x
+PθLRM (x | z) = σ(θ⊤ z)x 1 − σ(θ⊤ z)
+for σ(θ⊤ z) = {1 + exp(θ1 + θ2 z)}−1 ,
+
+(6)
+
+and chart uncertainty estimates across several methods that derive from this set-up.
+
+Figure 5: Golf putting data. Points represent the proportion of successful putts made by professional
+golfers as a function of the distance from the hole. The first row shows the predictive mean and
+one standard deviation intervals of the Bayes, Martingale, and PrO posteriors. The second row
+shows the marginals of the corresponding parameter posteriors.
+
+21
+
+4.2.1
+
+Bayes Posterior and Martingale Posterior Uncertainty
+
+First, we compare PrO posterior uncertainty with classical Bayes posteriors and a Martingale posterior (Fong et al., 2023) based on the Bayesian bootstrap and the negative log
+likelihood loss (see Lyddon et al., 2019; Rubin, 1981), and display the results in Figure
+5. Bayes posteriors and Martingale posteriors are built around the idea that a single parameter is sufficient to summarise the data-generating process, and that the only source
+of uncertainty is unseen data. Accordingly, both produce posteriors that concentrate onto
+a single parameter value. Their predictive distributions mirror this, and are qualitatively
+similar to what one would obtain by using the maximum likelihood estimator to construct
+a plug-in predictive distribution (see McLatchie et al., 2025). This sharply contrasts with
+the behaviour of the PrO posterior: its predictive distribution indicates that while the
+success of short puts can be estimated with some fidelity, the success of longer puts is associated with substantive levels of uncertainty. One possible explanation of this phenomenon
+is that the logistic regression model is too coarse, and that there are in fact two sub-groups
+of professional golfers: those that are very proficient at longer puts, and those that are
+not. This hypothesis is backed up by the PrO posterior on θ2 , a parameter which models
+the effect of distance on the probability of a successful put: unlike the Bayes posterior or
+the Martingale posterior, the marginal PrO posterior of θ2 has two modes which could
+account for these two sub-groups. To investigate this effect more carefully, we also compute
+the posterior marginal effect of distance on the probability of a successful put, which for a
+posterior Q can be calculated as
+Z
+
+∂PθLRM (x | z)
+dQ(θ) =
+∂z
+
+Z
+
+θ2 · PθLRM (x = 1 | z)PθLRM (x = 0 | z)dQ(θ),
+
+and we plot these curves as a function of the distance z in Figure 6. Inferences across the
+Bayes, Martingale, and PrO posteriors agrees on the qualitative nature of the marginal
+22
+
+Figure 6: Top row : the mean (solid line) and one standard error intervals (shaded area) of the
+posterior marginal effects of the Bayes, Martingale, and PrO posteriors as a continuous function
+of distance in the golf putting data. Bottom row : we investigate the posterior marginal effect under
+PrO posterior at 2, 4, 6, 8, and 20 feet.
+
+effect of distance: while the marginal effect of distance is negative and decreasing until
+around 5–7 feet, it increases thereafter and monotonically in the range of 7–20 feet, and
+rises close to a zero marginal effect. This suggests that at the range of 5–7 feet, every
+professional golfer will opt to put, and that longer puts are generally more difficult. As the
+distance to the hole increases, only golfers very proficient at putting over long distances
+opt to take the shot, so that distance modulates a positive marginal effect on success.
+While all posteriors agree on the shape of this curve, the accompanying uncertainty
+differs substantively. Unlike for the Bayes and Martingale posteriors, the marginal effects
+obtained from the PrO posterior at each distance are rich multimodal distributions, and
+allow a more fine-grained model criticism. More precisely, they show that while posterior
+uncertainty of the marginal effect is unimodal for very short and very long distances, it
+23
+
+bifurcates into a bimodal distribution for middle distances, which once again reaffirms
+our previous observations: there are two relevant sub-groups in the data set, and middle
+distances are the most informative to discriminate between them.
+We note that this ease at which PrO posteriors can be used for model criticism has led
+previous authors to speculate that one may be able to use related methods as a diagnostic
+tool for model misspecification (see Lai and Yao, 2024; Chazal et al., 2025). While this
+has previously been argued on the basis of heuristics, our findings in Section 3 provide the
+statistical tools required for making these ideas more rigorous.
+
+4.2.2
+
+Bayesian Mixture Models
+
+The above example raises an immediate question: given that the PrO posteriors seems to
+indicate the presence of a group structure in the model, should we think of PrO posteriors
+as mixture models? In fact, since the PrO posterior objective (2) directly targets the
+R
+marginalised predictive Pθ dQ(θ)—an object which we might call a mixture—how are the
+aims of PrO posterior inference different from those of mixture modelling?
+To answer this, consider the Bayesian mixture model given by
+Pθ(1:M ) ,ω(1:M ) (x | z) =
+
+M
+X
+
+ω (m) · PθLRM
+(m) (x | z),
+
+m=1
+
+where the vector ω (1:M ) is non-negative and sums to one. One of the key practical challenges
+in Bayesian mixture modelling consists in choosing priors on M and the mixture weights
+ω (1:M ) . This is a key difference: PrO posteriors make no attempt at modelling mixtures
+over PθLRM , and thus require no such priors. Instead, their priors are formulated with respect
+to the typically more interpretable parameters of the base model PθLRM . Thus, while the
+PrO posterior Qn is a predictively oriented mixing measure over the base model PθLRM ,
+this mixing measure itself requires neither a statistical model nor a prior.
+24
+
+This is a sharp contrast to mixture models: as their name implies, they explicitly
+model the mixture over PθLRM . This changes the parameter of interest: relative to the
+simple logistic model in (6), a mixture model with M components inflates the number of
+parameters by a factor of M . Though the resulting mixture Pθ(1:M ) , ω(1:M ) is more flexible
+than PθLRM , it is also less parsimonious, and thus more difficult to interpret. In fact, mixture
+models are usually used as density estimators, with parameters in each component being
+synthetic artifacts without inherent meaning, so that Pθ(1:M ) , ω(1:M ) = Pθρ(1:M ) , ωρ(1:M ) for any
+permutation ρ.
+The above reveals several important practical differences between PrO posteriors and
+Bayesian mixture models: the latter abide by orthodox Bayesian modelling, which comes
+at the price of having to model the mixture and changing the parameter of interest. In
+contrast, PrO posteriors continue to draw inferences with respect to a simpler and more
+interpretable parameter. This allows for conclusions, summaries, and model criticisms that
+lack clear counterparts in mixture models. For instance, since
+
+log
+
+PθLRM (x = 1 | z)
+PθLRM (x = 0 | z)
+
+
+= θ1 + θ2 z,
+
+the parameter θ2 is directly interpretable as the linear effect of distance on the log-odds of
+a successful put. The PrO posterior uncertainty which indicates two sub-groups of golfers
+will therefore map directly onto the log-odds of the inferred model. We illustrate this phenomenon in Figure 7, which shows that for larger put distances, the skill differences between
+these two groups become more pronounced (as measured in log odds). Mixture models
+would not admit this visualisation: they make it impossible to express (θ(1:M ) , ω (1:M ) ) in
+terms of their linear contributions to the log-odds of the underlying model Pθ(1:M ) , ω(1:M ) .
+
+25
+
+Figure 7: The distribution of PrO posterior log-odds for the golf putting data. The black dots
+represent the posterior mean at those distances, and the solid line represents the posterior mean as
+a continuous function of distance.
+
+5
+
+Illustrations
+
+We supplement the discussion of the previous section by illustrating the promise of PrO
+posteriors on three statistical problems. In Section 5.1, we highlight the implications of
+convex recovery in a binary classification problem. Moving past independently sampled
+data, the remaining examples illustrate that PrO posteriors outperform Gibbs posteriors
+even when the theory’s assumptions are violated. In this vein, Section 5.2 focuses on predicting temporally dependent water flows of Stansted Brook in England, while Section 5.3
+investigates the impact of using different scoring rules in a graphical model for spatially
+dependent house prices in Boston.
+
+5.1
+
+Binary classification
+
+To strengthen intuitions about the predictive benefits conferred by PrO posteriors, we
+construct a synthetic data set in which a generalised linear model with logistic link function
+allows for convex recovery as set out in Definition 2. Labels yi are assigned deterministically
+(0)
+
+(1)
+
+as a function of the covariate vector (xi , xi ) which is sampled uniformly on [−2, 2]2 .
+
+26
+
+(0)
+
+(1)
+
+When the covariate vector falls into the top-left quadrant of [−2, 2]2 (so that xi < 0, xi >
+(0)
+
+(i)
+
+0), yi = 0. In contrast, the bottom-left quadrant (for which xi > 0, xi < 0) yields yi = 1,
+while labels in the remaining two quadrants are sampled as yi ∼ Ber(0.5).
+We generate n = 1, 000 observations from this model and compute both the corresponding Bayes posterior and the PrO posterior based on the logarithmic scoring rule. We
+compare their posterior predictive distributions in Figure 8, and conclude that Bayesian
+inference produces a subpar decision boundary which leads to an overconfident misinterpretation about the data-generating process in the top-right and bottom-left quadrants. In
+contrast, the PrO posterior identifies the correct decision boundary, and recovers a predictive distribution PQn for which KL(P0 ∥PQn ) is close to zero. This mirrors the predictions
+of Theorems 1, and is a consequence of the fact that the PrO posterior predictive allows
+for convex recovery of the exact decision boundary. Figure 9 further illustrates this by
+probing the effect of n, and confirms that the theory derived is practically relevant even
+for relatively small data set sizes.
+
+5.2
+
+River flow data
+
+Throughout, our theoretical developments have used the assumption of independently sampled data. In practice however, prediction is often most interesting for sequentially or
+spatially dependent data. While the theoretical development provided in the current paper cannot account for this, the following example shows that PrO posteriors continue to
+function as expected in temporally dependent data (see also Shen et al., 2025).
+Here, we focus on predicting the gauged daily flow of Stansted Brook north of London
+using measurements of the UK’s Environment Agency. We model the flow using an autoregressive model of order seven with an intercept term, and compare the inferences obtained
+
+27
+
+Figure 8: Top row: Bayes and PrO posterior predictive distributions overlaid with the raw data.
+Bottom row: Decision boundaries induced by individual draws from the posterior predictives. While
+the Bayes posterior concentrates onto a single decision boundary, the PrO posterior is multimodal.
+
+Figure 9: Constructing Bayes and PrO posteriors using n observations, we plot their negative log
+likelihood (NLL) on test data, with standard error intervals obtained from 20 replications.
+
+28
+
+from a Gibbs posterior and a PrO posterior using the squared MMD. With this set-up, we
+fit the model using data from March to November 2002, and use it to obtain one-step-ahead
+predictions over the course of the transition from the exceptionally wet winter of 2002/2003
+into the country’s driest February—October period since 1921 (Marsh, 2004). This abrupt
+shift from heavy rain in January to the dry and warm conditions from February onwards
+produced severe though short-lived hydrological stress, and offers an interesting regime for
+testing the adaptivity of the PrO posterior. For further details, see Appendix D.6.
+The results of our experiments are summarised in Figure 10. Here, we show the onestep-ahead predictive means over the period of November 2002 to March 2003 in the left
+column. We find that the richer parameter uncertainty conferred by the PrO posterior is
+able to handle the variability in the data more easily than the Gibbs posterior. This is also
+evident from the right column of the Figure, which charts the cumulative performance of the
+leave-one-out predictions. In summary, despite violating the assumption of independently
+sampled data, we can recover the clear benefits of PrO posteriors. This suggests that the
+independence assumptions imposed in our work are not required to justify using the PrO
+posterior in practice.
+
+5.3
+
+Boston housing data
+
+Strengthening the observations made in our previous experiment, we now demonstrate
+that PrO posteriors continue to function reliably in spatial settings by modelling the
+median house price across n = 506 different census tracts in Boston in the 1970s and
+1980s. These data were originally collected by Harrison and Rubinfeld (1978), and are
+summarised graphically in the left-most panel of Figure 11. Here, census tracts i and j are
+displayed as nodes in an undirected graph with adjacency matrix Ω whose entry at (i, j) is
+
+29
+
+Figure 10: River flow data. In the left column we show the water flow (log scaled) in the winter
+leading up to the drought of 2003 along with the mean of the Gibbs and PrO predictive distributions
+respectively. In the right column we show the one-step-ahead cumulative mean predictive metrics.
+
+given by ωi,j = 0 unless the tracts i and j share at least one vertex, in which case ωi,j = 1.
+Median house values are then modelled as the conditional auto-regression
+!
+yi | y1 , . . . yi−1 , yi+1 , . . . yn ∼ N θ
+
+X
+
+ω̃i,j yj , σ 2
+
+,
+
+j̸=i
+
+where ω̃i,j denote the rescaled ωi,j so that
+
+P
+
+j̸=i ω̃i,j = 1 for all i and where σ
+
+2
+
+> 0 is a fixed
+
+constant which we estimate from data (for a more detailed explanation, see Appendix D.3).
+From this model, we construct two Gibbs and PrO posteriors for θ using the squared MMD
+and log score respectively; see Appendix D.8 for further details.
+Importantly, the underlying data distribution is bimodal, and has its primary mode at
+around $20, 000 and a second smaller mode at $50, 000 (see Appendix D.8), with the second
+mode is due to censoring values exceeding $50, 000 (Gilley and Pace, 1996). In other words,
+the data set has two sub-groups: tracts with median prices close to $20, 000, and tracts
+30
+
+with median prices are more than twice that value. Our results in Figure 11 show the effect
+on inference: while the Gibbs posterior fails to capture this hidden structure in the data,
+the PrO posterior transfers it to the parameter space. Its bi-modality reflects the fact
+that while there is a small group of census tracts with very high house prices surrounded
+by cheaper areas, a much larger group will be surrounded by similarly priced tracts. While
+the former group is accounted for through a smaller mode around θ ∈ [1.2, 1.4], the latter
+is captured by the larger mode around θ ∈ [0.8, 1.0]. As the rightmost panel of Figure 11
+confirms, this is not only a richer description of parameter uncertainty, but also leads
+to better predictive performance. Confirming our earlier observation that the choice of
+scoring rule seems to matter less for PrO posteriors, these results and interpretations are
+qualitatively the same whether one uses the squared MMD or the logarithmic scoring rule.
+
+6
+
+Computation via Wasserstein Gradient Flows
+
+The tools for the computation of PrO posteriors are limited. In fact, most previous
+work targeting related objects did not even consider the possibility of exact computation,
+and instead focused on approximating Qn with a parameterised variational family (see
+Jankowiak et al., 2020a,b; Masegosa, 2020; Morningstar et al., 2022; Lai and Yao, 2024).
+The only pre-existing work directly targeting exact computation is Shen et al. (2025), which
+built on the ideas in Wild et al. (2023) and the mean-field Langevin algorithm of Del Moral
+(2013) to derive an asymptotically exact sampler for the special case where the scoring rule
+is the squared MMD. Here, we explain how this can be generalised to any PrO posterior.
+We may rewrite the objective minimised in (2) as
+n
+
+λn X
+S (PQ , xi ) −
+L (Q) =
+n i=1
+
+Z
+
+Z
+log dΠ(θ) dQ(θ) +
+
+31
+
+log dQ(θ) dQ(θ).
+
+(7)
+
+Figure 11: Top left: illustration of the Boston housing data set. Nodes correspond to census tracts,
+and shade represents price level. Census tracts are connected by edges if they are spatially adjacent.
+Middle columns: Gibbs and PrO parameter posteriors under the MMD score (top row) and the
+log score (bottom row). Right column: mean and standard error of the leave-one-node-out negative
+log likelihood (lower is better).
+
+For functionals like this, the Wasserstein gradient flow (WGF) can be used to construct
+a gradient descent scheme via interacting particle systems derived from a McKean-Vlasov
+process. If the Wasserstein gradient of n1
+
+Pn
+
+i=1 S (PQ , xi ) is given by W(Q), the Wasserstein
+
+gradient of L (Q) with respect to Q evaluated at ϑ ∈ Θ is
+∇W L (Q)[ϑ] = λn W(Q)[ϑ] − ∇ϑ log dΠ(ϑ) + ∇ϑ log dQ(ϑ).
+The WGF {Qt }t>0 defined by this gradient is the continuous-time process which evolves
+in the direction of steepest descent relative to the convex functional Q 7→ L (Q) given by
+∇W L (Q). As L (Q) is convex, and as the minimiser of L (Q) is the PrO posterior, the
+WGF acts as a continuously-valued version of gradient descent on probability measures, so
+32
+
+that Qt converges to the PrO posterior as t → ∞ under mild conditions.
+To implement this gradient descent algorithm numerically, we resort to the WGF’s
+mean-field representation, which gives rise to the stochastic differential equation (SDE)
+dϑt = − {λn W(Qt )[ϑt ] − ∇ϑ log dΠ(ϑt )} dt +
+
+√
+
+2dBt ,
+
+for ϑt ∼ Qt ,
+
+and where the Brownian motion Bt appears as the WGF of entropy corresponds to the
+heat equation (Jordan et al., 1998). Unfortunately, the above SDE still depends on the
+unknown measure Qt , which makes exact forward simulation impossible. To remedy this,
+(j)
+
+we use the approximations Qt (θ) ≈ p1
+
+Pp
+
+, where δx denotes the Dirac measure
+ℓ=1,ℓ̸=j δϑ(ℓ)
+t
+
+(j)
+
+at x, and ϑt for j = 1, 2, . . . p are a set of p interacting particles. This finally results in a
+system of p interacting particles whose evolution is governed by the p equations
+(j)
+dϑt = −
+
+(j)
+
+where {Bt
+
+n
+o
+√
+(j)
+(j)
+(j)
+(j)
+W(Qt )[ϑt ] − ∇ϑ log dΠ(ϑt ) dt + 2dBt ,
+
+j = 1, 2 . . . p,
+
+: j = 1, 2, . . . p} denotes p independent Brownian motions. To obtain a high-
+
+fidelity approximation of the PrO posterior from this particle system, one discretises it into
+time steps t1 , t2 , . . . , and evolves it for a sufficiently long time. Afterwards, one averages
+over all time steps past an initial burn-in τ and approximates the PrO posterior as
+X
+1
+b i]
+Q[t
+Qn ≈
+|{ti : ti > τ }| t >τ
+i
+
+for
+
+p
+1X
+b
+Q[ti ] =
+δ (j) .
+p j=1 ϑti
+
+Here, the notation highlights that this approximation should be thought of as an average
+b
+of |{ti : ti > τ }| measures Q[t],
+each of which would recover Qn exactly if there were no
+discretisation error and both p → ∞ and t → ∞ (see e.g. Lemma 6 in Appendix E of
+Wild et al., 2023). We showcase this algorithm for the squared MMD and the logarithmic
+scoring rule in Appendix E.1, and elaborate on practical considerations in Appendix E.2.
+
+33
+
+7
+
+Discussion
+
+In this paper, we have advocated for a new statistical paradigm that defines epistemic
+uncertainty as a function of predictive capability. This led to PrO posteriors, which predictively dominate alternative methods for parameter inference like Gibbs posteriors and
+deliver interpretable and practically meaningful uncertainty quantification. We argued that
+PrO posteriors bridge the two main statistical traditions identified by Breiman (2001), and
+asserted that they lead to a version of epistemic uncertainty that is more expansive, adapts
+to model misspecification, and can avoid posterior collapse whenever this improves predictive performance. Throughout, we rigorously established these benefits and illustrated
+their practical importance on several instructive examples.
+While we have presented evidence which advocates the adoption of PrO posteriors
+for inference and uncertainty quantification, much remains to be done. Perhaps the most
+pressing concern is the improvement of the available strategies for computation: sampling
+schemes obtained from interacting particle systems require further work before they can become attractive off-the-shelf algorithmic framework. Most notably, naı̈ve implementations
+are infeasible for high-dimensional problems, generally computationally demanding, and
+require careful tuning of several hyperparameters. However, since research on improving
+such samplers has recently intensified (see Suzuki et al., 2023; Fu and Wilson, 2023; Liu
+et al., 2023; Chazal et al., 2025), we are hopeful that advances in the area will facilitate
+purpose-built algorithms which overcome these limitations.
+Beyond computation, there are several outstanding theoretical questions that our current development has not explored yet. The most obvious of these concerns the choice
+of scoring rule. While our experiments and theory suggest that this choice is relatively
+unimportant in the case of convex recovery, we expect there to be important qualitative
+
+34
+
+differences in behaviour for certain forms of non-trivial misspecification. For example, with
+Huber-contaminated data-generating processes of the form P0 = (1 − ε)PQ∗ + ε · c for some
+Q∗ ∈ P(Θ) and some contamination c ∈ P(X ), existing research on parametric inference
+(see e.g. Chérief-Abdellatif and Alquier, 2020, 2022; Dellaporta et al., 2022; Alquier et al.,
+2023; Alquier and Gerber, 2024) would indicate that PrO posteriors based on outlierrobust scoring rules like the squared maximum mean discrepancy should recover posteriors
+very similar to Q∗ , while logarithmic scoring rules would behave completely differently.
+A second foundational question concerns the degree to which data can be allowed to be
+dependent: while our theory was derived under the assumption of independent data, our
+experiments seemed to suggest that the predictive benefits of PrO posteriors extend beyond this setting. Lastly, while it is clear that PrO posteriors are incoherent belief updates
+in the sense of Bissiri et al. (2016), it is worth investigating whether they can be re-cast as
+quasi-coherent updates on an extended space.
+In the bigger picture, PrO posteriors have interesting connections to a number of other
+approaches grounded in frequentist statistics, and studying their intersection may result in
+mutually beneficial insights. For instance, the PrO posterior can be seen as a regularised
+frequentist estimate for the mixing measure in a nonparametric mixture model: most obviously, in the special case of the logarithmic scoring rule and when the prior regularisation
+term is dropped, (2) recovers nonparametric maximum likelihood exactly. Importantly,
+dropping the KL-term causes several practical issues that are absent from PrO posteriors, including computational difficulties due to non-identifiability (see e.g. Laird, 1978).
+Further, the corresponding measure-valued nonparametric maximum likelihood estimator
+generally cannot be interpreted as a tool for probabilistic uncertainty quantification—not
+only for conceptual reasons, but also because it is generally not unique and discrete; see
+
+35
+
+Lindsay (1995, Theorem 21 in Chapter 5) and Jordan-Squire (2015).
+Similarly, our work has clear parallels with the efforts of statistical learning theory to
+develop optimal aggregation procedures for predictors. For example, in his Saint-Flour
+lectures, Nemirovski (2000) introduces convex aggregation as the statistical task of finding
+the optimal convex combination of predictors. Intriguingly, for some model classes such
+as bounded regression with a finite number of candidates, the minimax-optimal convex
+aggregation procedure with respect to the squared risk can be shown to coincide precisely
+with (2) so long as the KL-regularisation term is removed (see, e.g., Lecué, 2013; Yang and
+Dunson, 2014). Though we have made no attempt at formalising these suspicions, this
+also suggests that PrO posteriors may be close to minimax-optimal convex aggregation
+procedures in certain problem classes.
+
+Acknowledgements
+This manuscript has benefited tremendously from interactions with many brilliant colleagues. Most notably, we feel deep gratitude towards Prof. Chris Oates for many conversations and insightful remarks. Further, we would like to thank Dr. Louis Sharrock
+and Dr. Sam Power for their help with the computational aspects of this paper. We are
+also grateful for correspondence with Prof. Pierre Alquier that pointed to the connection
+with PAC-Bayesian majority voting. Additionally, we owe a tremendous debt of gratitude to several colleagues who took time to read an earlier version of this manuscript and
+gave incredibly insightful comments—often pages and pages of them!—that significantly
+improved the paper; most notably Prof. David Dunson, Prof. Jeff Miller, Prof. Aki Vehtari, Prof. Pierre Jacob, Dr. Andres Masegosa, Dr. Edwin Fong, Dr. Jack Jewson,
+and Dr. Takuo Matsubara. DTF acknowledges funding from the Australian Research
+
+36
+
+Council (DE200101070, DP200101414), YM from the Heilbronn Institute for Mathematical Research (EP/V521917/1), and JK was supported through the UK’s Engineering and
+Physical Sciences Research Council (EPSRC) via EP/W005859/1. The authors acknowledge the use of the UCL Myriad High Performance Computing Facility (Myriad@UCL),
+and associated support services, in the completion of this work. Data were provided by the
+UK National River Flow Archive.
+
+References
+Aitchison, J. (1975). Goodness of prediction fit. Biometrika 62(3), 547–554. 2, 6, 7
+Alquier, P. (2024). User-friendly introduction to PAC-Bayes bounds. Foundations and Trends® in Machine
+Learning 17(2), 174–303. 2, 44
+Alquier, P., B.-E. Chérief-Abdellatif, A. Derumigny, and J.-D. Fermanian (2023). Estimation of copulas
+via maximum mean discrepancy. Journal of the American Statistical Association 118(543), 1997–2012.
+35
+Alquier, P. and M. Gerber (2024, February). Universal robust regression via maximum mean discrepancy.
+Biometrika 111(1), 71–92. Publisher: Oxford University Press (OUP). 35, 66
+Alquier, P., J. Ridgway, and N. Chopin (2016). On the properties of variational approximations of Gibbs
+posteriors. The Journal of Machine Learning Research 17(1), 8374–8414. 49
+Altamirano, M., F.-X. Briol, and J. Knoblauch (2023a). Robust and conjugate Gaussian process regression.
+arXiv preprint arXiv:2311.00463. 6, 9
+Altamirano, M., F.-X. Briol, and J. Knoblauch (2023b). Robust and scalable Bayesian online changepoint
+detection. In International Conference on Machine Learning. PMLR. 6, 9
+Audibert, J.-Y. (2004). Pac-bayesian statistical learning theory. These de doctorat de l’Université Paris 6,
+29. 8
+Banerjee, S., K. Balasubramanian, and P. Ghosal (2025). Improved finite-particle convergence rates for
+stein variational gradient descent. 73
+Berti, P., E. Dreassi, L. Pratelli, and P. Rigo (2021). A class of models for Bayesian predictive inference.
+Bernoulli 27(1), 702–726. 18
+Bissiri, P. G., C. C. Holmes, and S. G. Walker (2016). A general framework for updating belief distributions.
+J. Royal Statist. Society Series B 78(5), 1103–1130. 2, 7, 35
+Breiman, L. (2001, August). Statistical Modeling: The Two Cultures (with comments and a rejoinder by
+the author). Statistical Science 16(3). 4, 17, 34
+Bürkner, P.-C., J. Gabry, and A. Vehtari (2020, September). Approximate leave-future-out cross-validation
+for Bayesian time series models. Journal of Statistical Computation and Simulation 90(14), 2499–2523.
+70
+Chazal, C., H. Kanagawa, Z. Shen, A. Korba, and C. J. Oates (2025, September). A Computable Measure
+of Suboptimality for Entropy-Regularised Variational Objectives. arXiv:2509.10393 [stat]. 24, 34, 73
+
+37
+
+Chérief-Abdellatif, B.-E. and P. Alquier (2020). MMD-Bayes: Robust Bayesian estimation via maximum
+mean discrepancy. In Symposium on Advances in Approximate Bayesian Inference, pp. 1–21. PMLR.
+6, 35
+Chérief-Abdellatif, B.-E. and P. Alquier (2022). Finite sample properties of parametric mmd estimation:
+robustness to misspecification and dependence. Bernoulli 28(1), 181–213. 35
+Del Moral, P. (2013). Mean field simulation for monte carlo integration. Monographs on Statistics and
+Applied Probability 126(26), 6. 31
+Dellaporta, C., J. Knoblauch, T. Damoulas, and F.-X. Briol (2022). Robust Bayesian inference for
+simulator-based models via the MMD posterior bootstrap. In International Conference on Artificial
+Intelligence and Statistics, pp. 943–970. PMLR. 35
+Duran-Martin, G., M. Altamirano, A. Shestopaloff, L. Sánchez-Betancourt, J. Knoblauch, M. Jones, F.X. Briol, and K. P. Murphy (2024). Outlier-robust kalman filtering through generalised bayes. In
+International Conference on Machine Learning, pp. 12138–12171. PMLR. 6, 9
+Fong, E., C. Holmes, and S. G. Walker (2023). Martingale posterior distributions. Journal of the Royal
+Statistical Society Series B: Statistical Methodology 85(5), 1357–1391. 2, 18, 19, 21, 22
+Fortini, S. and S. Petrone (2020). Quasi-Bayes Properties of a Procedure for Sequential Learning in Mixture
+Models. Journal of the Royal Statistical Society Series B: Statistical Methodology 82(4), 1087–1114. 18
+Fortini, S. and S. Petrone (2023). Prediction-based uncertainty quantification for exchangeable sequences. Philosophical Transactions of the Royal Society A: Mathematical, Physical and Engineering
+Sciences 381(2247), 20220142. 18
+Fortini, S. and S. Petrone (2025). Exchangeability, prediction and predictive modeling in Bayesian statistics.
+Statistical Science 40(1), 40–67. 18
+Frazier, D. T., J. Knoblauch, J. Jewson, and C. Drovandi (2025). Exact sampling of gibbs measures with
+estimated losses. arXiv preprint arXiv:2404.15649. 6
+Fu, Q. and A. C. Wilson (2023). Mean-field underdamped langevin dynamics and its spacetime discretization. In Forty-first International Conference on Machine Learning. 34
+Garreau, D., W. Jitkrittum, and M. Kanagawa (2018, October). Large sample analysis of the median
+heuristic. arXiv:1707.07269 [math]. 67
+Gelman, A. and D. Nolan (2002, September).
+Statistics 24(3), 93–95. Publisher: Wiley. 21
+
+A Probability Model for Golf Putting.
+
+Teaching
+
+Germain, P., A. Lacasse, F. Laviolette, M. Marchand, and J.-F. Roy (2015). Risk bounds for the majority
+vote: From a pac-bayesian analysis to a learning algorithm. arXiv preprint arXiv:1503.08329. 8
+Ghosal, S., J. K. Ghosh, and A. W. van der Vaart (2000). Convergence rates of posterior distributions.
+Ann. Statist. 28(2), 500–531. 43
+Ghosal, S. and A. W. Van Der Vaart (2001). Entropies and rates of convergence for maximum likelihood
+and bayes estimation for mixtures of normal densities. Annals of Statistics, 1233–1263. 14
+Gilley, O. W. and R. Pace (1996, November). On the Harrison and Rubinfeld Data.
+Environmental Economics and Management 31(3), 403–405. 30
+
+Journal of
+
+Giummolè, F., V. Mameli, E. Ruli, and L. Ventura (2019, September). Objective Bayesian inference with
+proper scoring rules. TEST 28(3), 728–755. 6
+
+38
+
+Gneiting, T., F. Balabdaoui, and A. E. Raftery (2007). Probabilistic forecasts, calibration and sharpness.
+Journal of the Royal Statistical Society: Series B (Statistical Methodology) 69(2), 243–268. 14, 51
+Gneiting, T. and A. E. Raftery (2007). Strictly proper scoring rules, prediction, and estimation. Journal
+of the American statistical Association 102(477), 359–378. 5
+Grünwald, P. and T. van Ommen (2017). Inconsistency of bayesian inference for misspecified linear models,
+and a proposal for repairing it. Bayesian Analysis 12(4), 1069–1103. 6, 12, 44
+Harrison, D. and D. L. Rubinfeld (1978, March). Hedonic housing prices and the demand for clean air.
+Journal of Environmental Economics and Management 5(1), 81–102. 29
+Hauptvogel, N. and C. Igel (2024). On uniform, bayesian, and pac-bayesian deep ensembles. arXiv preprint
+arXiv:2406.05469. 8
+Horst, A. M., A. P. Hill, and K. B. Gorman (2020). palmerpenguins: Palmer Archipelago (Antarctica)
+penguin data. R package version 0.1.0. 18
+Hu, K., Z. Ren, D. Siska, and L. Szpruch (2020, December). Mean-Field Langevin Dynamics and Energy
+Landscape of Neural Networks. arXiv:1905.07769 [math]. 55
+Jankowiak, M., G. Pleiss, and J. Gardner (2020a). Deep sigma point processes. In Proceedings of the 36th
+Conference on Uncertainty in Artificial Intelligence. 8, 31
+Jankowiak, M., G. Pleiss, and J. Gardner (2020b). Parametric Gaussian process regressors. In Proceedings
+of the 37th International Conference on Machine Learning. 8, 31
+Jewson, J., J. Q. Smith, and C. Holmes (2018). Principles of Bayesian inference using general divergence
+criteria. Entropy 20(6), 442. 6
+Jiang, W. and M. A. Tanner (2008, October). Gibbs posterior for variable selection in high-dimensional
+classification and data mining. The Annals of Statistics 36(5). 2, 6
+Jordan, R., D. Kinderlehrer, and F. Otto (1998). The variational formulation of the fokker–planck equation.
+SIAM journal on mathematical analysis 29(1), 1–17. 33
+Jordan-Squire, C. (2015). Convex Optimization over Probability Measures. Ph. D. thesis, University of
+Washington. 36
+Knoblauch, J., J. Jewson, and T. Damoulas (2022). An optimization-centric view on Bayes’ rule: Reviewing
+and generalizing variational inference. The Journal of Machine Learning Research 23(1), 5789–5897. 2,
+7
+Knoblauch, J., J. E. Jewson, and T. Damoulas (2018). Doubly robust Bayesian inference for non-stationary
+streaming data with beta-divergences. Advances in Neural Information Processing Systems 31. 6
+Lacasse, A., F. Laviolette, M. Marchand, P. Germain, and N. Usunier (2006). Pac-bayes bounds for the risk
+of the majority vote and the variance of the gibbs classifier. Advances in Neural information processing
+systems 19. 8
+Lai, J. and Y. Yao (2024). Predictive variational inference: Learn the predictively optimal posterior
+distribution. arXiv preprint arXiv:2410.14843. 8, 24, 31
+Laird, N. (1978). Nonparametric maximum likelihood estimation of a mixing distribution. Journal of the
+American Statistical Association 73(364), 805–811. 35
+Laplante, W., M. Altamirano, A. Duncan, J. Knoblauch, and F.-X. Briol (2025). Robust and conjugate
+spatio-temporal gaussian processes. arXiv preprint arXiv:2502.02450. 6, 9
+
+39
+
+Laviolette, F., M. Marchand, and J.-F. Roy (2011). From pac-bayes bounds to quadratic programs for
+majority votes. In Proceedings of International Conference on Machine Learning, pp. 5–59. 8
+Laviolette, F., E. Morvant, L. Ralaivola, and J.-F. Roy (2017). Risk upper bounds for general ensemble
+methods with an application to multiclass classification. Neurocomputing 219, 15–25. 8
+Lecué, G. (2013). Empirical risk minimization is optimal for the convex aggregation problem. Bernoulli.
+36
+Lindsay, B. G. (1995). Mixture Models: Theory, Geometry, and Applications. Institute of Mathematical
+Statistics. 36
+Liu, L., M. B. Majka, and L. Szpruch (2023). Polyak–lojasiewicz inequality on the space of measures and
+convergence of mean-field birth-death processes. Applied Mathematics & Optimization 87(3), 48. 34
+Liu, Q., M. A. Fisher, Z. Shen, K. Tant, X. Zhao, A. Curtis, and C. J. Oates (2025, December). Detecting
+Model Misspecification in Bayesian Inverse Problems via Variational Gradient Descent. arXiv:2512.01667
+[stat]. 56
+Lorenzen, S. S., C. Igel, and Y. Seldin (2019). On pac-bayesian bounds for random forests. Machine
+Learning 108(8), 1503–1522. 8
+Lyddon, S., C. Holmes, and S. Walker (2019). General Bayesian updating and the loss-likelihood bootstrap.
+Biometrika 106(2), 465–478. 22
+Marsh, T. J. (2004, August). The UK drought of 2003: A hydrological review. Weather 59(8), 224–230.
+29
+Martin, R. and N. Syring (2022). Direct Gibbs posterior inference on risk minimizers: Construction,
+concentration, and calibration. In Handbook of Statistics, Volume 47, pp. 1–41. Elsevier. 2, 6
+Marusic, J., M. A. Medina, and C. Rush (2025). A theoretical framework for m-posteriors: frequentist
+guarantees and robustness properties. arXiv preprint arXiv:2510.01358. 9
+Masegosa, A. (2020). Learning under model misspecification: Applications to variational and ensemble
+methods. Advances in Neural Information Processing Systems 33, 5479–5491. 8, 31
+Masegosa, A., S. Lorenzen, C. Igel, and Y. Seldin (2020). Second order pac-bayesian bounds for the
+weighted majority vote. Advances in Neural Information Processing Systems 33, 5263–5273. 8
+Matsubara, T., J. Knoblauch, F.-X. Briol, and C. J. Oates (2022). Robust generalised Bayesian inference for
+intractable likelihoods. Journal of the Royal Statistical Society Series B: Statistical Methodology 84(3),
+997–1022. 6, 9
+Matsubara, T., J. Knoblauch, F.-X. Briol, and C. J. Oates (2023). Generalised Bayesian inference for
+discrete intractable likelihood. Journal of the American Statistical Association (just-accepted), 1–21. 6,
+9
+McLatchie, Y., E. Fong, D. T. Frazier, and J. Knoblauch (2025, July). Predictive performance of power
+posteriors. Biometrika 112(3), asaf034. 2, 6, 22
+Miller, J. W. and D. B. Dunson (2019). Robust bayesian inference via coarsening. Journal of the American
+Statistical Association. 3
+Morningstar, W. R., A. Alemi, and J. V. Dillon (2022). Pacm-bayes: Narrowing the empirical risk gap in
+the misspecified bayesian regime. In International Conference on Artificial Intelligence and Statistics,
+pp. 8270–8298. PMLR. 8, 31
+
+40
+
+Nemirovski, A. (2000). Topics in non-parametric statistics. Ecole d’Eté de Probabilités de Saint-Flour 28,
+85. 36
+Ortega, L. A., R. Cabañas, and A. Masegosa (2022). Diversity and generalization in neural network
+ensembles. In International Conference on Artificial Intelligence and Statistics, pp. 11720–11743. PMLR.
+8
+Pedregosa, F., G. Varoquaux, A. Gramfort, V. Michel, B. Thirion, O. Grisel, M. Blondel, P. Prettenhofer,
+R. Weiss, V. Dubourg, J. Vanderplas, A. Passos, D. Cournapeau, M. Brucher, M. Perrot, and E. Duchesnay (2011). Scikit-learn: Machine learning in Python. Journal of Machine Learning Research 12,
+2825–2830. 64
+Pitas, K., H. A. Bourrous, and J. Arbel (2025). u-ensembles: Improved diversity in the small data regime
+using unlabeled data. In 7th Symposium on Advances in Approximate Bayesian Inference {\textendash}
+Proceedings Track. 8
+Robert, C. P. et al. (2007). The Bayesian choice: from decision-theoretic foundations to computational
+implementation, Volume 2. Springer. 1
+Roberts, G. O. and J. S. Rosenthal (1998). Optimal scaling of discrete approximations to langevin diffusions.
+Journal of the Royal Statistical Society: Series B (Statistical Methodology) 60(1), 255–268. 72
+Roberts, G. O. and R. L. Tweedie (1996). Exponential convergence of Langevin distributions and their
+discrete approximations. Bernoulli 2(4), 341 – 363. 72
+Rubin, D. B. (1981). The bayesian bootstrap. The annals of statistics, 130–134. 22
+Schmon, S. M., P. W. Cannon, and J. Knoblauch (2020). Generalized posteriors in approximate bayesian
+computation. In Third Symposium on Advances in Approximate Bayesian Inference. 6
+Sharrock, L. and C. Nemeth (2025, October). Tuning-Free Sampling via Optimization on the Space of
+Probability Measures. arXiv:2510.25315 [stat]. 69, 72
+Shen, Z., J. Knoblauch, S. Power, and C. J. Oates (2025). Prediction-centric uncertainty quantification via
+mmd. In The 28th International Conference on Artificial Intelligence and Statistics. 8, 27, 31, 56, 71
+Sheth, R. and R. Khardon (2020). Pseudo-Bayesian learning via direct loss minimization with applications
+to sparse Gaussian process models. In Proceedings of the 6th Symposium on Advances in Approximate
+Bayesian Inference. 8
+Sivula, T., M. Magnusson, A. A. Matamoros, and A. Vehtari (2025, January). Uncertainty in Bayesian
+Leave-One-Out Cross-Validation Based Model Comparison. Bayesian Analysis -1(-1). 68
+Suzuki, T., D. Wu, and A. Nitanda (2023). Convergence of mean-field langevin dynamics: time-space
+discretization, stochastic gradient, and variance reduction. Advances in Neural Information Processing
+Systems 36, 15545–15577. 34
+Syring, N. and R. Martin (2019). Calibrating general posterior credible regions. Biometrika 106(2), 479–
+486. 2, 3, 6
+Theisen, R., H. Kim, Y. Yang, L. Hodgkinson, and M. W. Mahoney (2024). When are ensembles really
+effective? Advances in neural information processing systems 36, 15015–15026. 8
+van der Vaart, A. W. (1998). Asymptotic statistics, Volume 3. Cambridge: Cambridge University Press. 2
+Viallard, P., P. Germain, A. Habrard, and E. Morvant (2021). Self-bounding majority vote learning
+algorithms by the direct minimization of a tight pac-bayesian c-bound. In Joint European Conference
+on Machine Learning and Knowledge Discovery in Databases, pp. 167–183. Springer. 8
+
+41
+
+Vignault, L.-P., A. Durand, and P. Germain (2023). Erratum: Risk bounds for the majority vote: From a
+pac-bayesian analysis to a learning algorithm. Journal of Machine Learning Research 24(294), 1–13. 8
+Wang, D. and Q. Liu (2019). Nonlinear stein variational gradient descent for learning diversified mixture
+models. In International Conference on Machine Learning, pp. 6576–6585. PMLR. 8
+Wei, Y., R. Sheth, and R. Khardon (2021). Direct loss minimization for sparse gaussian processes. In
+International Conference on Artificial Intelligence and Statistics, pp. 2566–2574. PMLR. 8
+Wild, V. D., S. Ghalebikesabi, D. Sejdinovic, and J. Knoblauch (2023). A rigorous link between deep
+ensembles and (variational) bayesian methods. Advances in Neural Information Processing Systems 36,
+39782–39811. 31, 33
+Wu, Y.-S., A. Masegosa, S. Lorenzen, C. Igel, and Y. Seldin (2021). Chebyshev-cantelli pac-bayes-bennett
+inequality for the weighted majority vote. Advances in Neural Information Processing Systems 34,
+12625–12636. 8
+Wu, Y.-S. and Y. Seldin (2022). Split-kl and pac-bayes-split-kl inequalities for ternary random variables.
+Advances in Neural Information Processing Systems 35, 11369–11381. 8
+Yang, Y. and D. B. Dunson (2014, March). Minimax Optimal Bayesian Aggregation. arXiv:1403.1345
+[math]. 36
+Zellner, A. (1988, November). Optimal information processing and Bayes’s theorem. The American
+Statistician 42(4), 278. 2
+Zhang, T. (2006, October). From ε-entropy to KL-entropy: Analysis of minimum information complexity
+density estimation. The Annals of Statistics 34(5). 2, 6
+
+8
+
+Detailed Theoretical Developments
+
+Herein, we fully develop and explain the results summarised in Theorem 1, and discuss
+some additional results left out from the main paper. Throughout all results, we take
+p
+λn = n1/2 / kC 2 log(n)2 for some universal constant C which depends on the particular
+assumptions imposed, and where we set k = 1 when Assumption 2 is satisfied.
+
+8.1
+
+A Preliminary Result
+
+Recall that DS represents the divergence associated with the scoring rule S(·, x), where
+DS (P, P0 ) = S(P, P0 ) − S(P0 , P0 ), and S(P, P0 ) = EX∼P0 [S(P, X)].
+Regardless of the fact that that different scores can require slightly different regularity
+conditions, PrO posteriors deliver similar theoretical results in both cases.
+42
+
+Lemma 1. Assumption 1 is satisfied. If Assumption 2 or Assumption 2′ holds, then
+
+
+KL(Q∥Π)
+E [DS (PQn , P0 )] ≤ inf
+DS (PQ , P0 ) +
++ νn .
+Q∈P(Θ)
+λn
+for νn as defined in (5).
+Lemma 1 delivers a meaningful preliminary bound on the predictive performance of
+PrO posteriors. Further, this result applies to PrO posterior based on any predictive
+score that satisfies our Assumptions.
+
+8.2
+
+Generic Misspecification
+
+Under mild regularity conditions, Gibbs posteriors based on scoring rules concentrate towards θ⋆ := argminθ∈Θ S(Pθ , P0 ), which defines the model that is closest to P0 in terms of
+S. In fact, results like this only require existence of θ⋆ and mild conditions on the probability mass that Π has around θ⋆ . The next assumption provides such conditions, and is
+sufficient for Gibbs posterior concentration to occur. In the remainder, we will use these
+assumptions to compare the behaviour of Gibbs posteriors with that of PrO posteriors as
+n increases.
+Assumption 3. There exists θ⋆ = argminθ∈Θ S(Pθ , P0 ), and constants cS > 0 and dS > 0
+and some r0 > 0 such that, for any r ≤ r0 , and Br := {θ ∈ Θ : DS (Pθ , P0 ) − DS (Pθ⋆ , P0 ) ≤ r},
+Π (Br ) ≥ (r/cS )dS .
+The above is slightly stronger than the classical prior mass condition of Ghosal et al.
+(2000), insofar as the condition is essentially geared toward parametric models: while it
+may not be satisfied outside of Euclidean spaces, it is mild and unrestrictive when Θ is a
+Euclidean space. In fact, the above assumption is considered standard in the PAC-Bayes
+literature, where interest traditionally is more focused on parametric models (see, e.g.,
+43
+
+Section 4.4 of Alquier, 2024); however, we note that this condition can be replaced with
+the standard prior mass condition, in general rates, without meaningfully altering our main
+results. Using Assumption 3, we obtain the first result comparing predictive performance
+between PrO posteriors and Gibbs posteriors in the case where we allow for generic model
+misspecification.
+Theorem 2. Under Assumptions 1-3, E[DS (PQn , P0 ) − DS (Pθ⋆ , P0 )] ≲ νn . Furthermore,
+
+
+E[DS PQ†n , P0 − DS (Pθ⋆ , P0 )] ≲ log(n)/n1/2 .
+In words, Theorem 2 says that the PrO posteriors predictive performance is comparable
+to that of the Gibbs posterior based on the same scoring rule. While this may be reassuring,
+it does not show that the PrO posterior confers a clear advantage. The reason for this
+is that Assumption 3 does not rule out the case where the predictively optimal average
+Q⋆ ∈ arginf Q∈P(Θ) S(PQ , P0 ) is a point mass at θ⋆ = argminθ∈Θ DS (Pθ , P0 ), the scoreminimising value. In this case—which is unlikely to occur in sufficiently complex data
+sets—Gibbs and PrO posteriors alike would allocate most of their probability mass around
+θ⋆ as n → ∞, and would not produce meaningfully different predictive distributions.
+
+8.3
+
+Non-Trivial Misspecification
+
+By excluding trivial forms of misspecification, we can obtain a clearer idea of the advantages PrO posteriors maintain over Bayes and Gibbs posteriors. Following the idea of
+bad misspecification presented by Grünwald and van Ommen (2017), the more general notion of non-trivial misspecification in Definition 2 will ensure that averaging over MΘ is
+predictively advantageous.
+Assumption 4. There exists Q⋆ ∈ arg inf Q∈P(Θ) DS (PQ , P0 ), such that KL(Q⋆ ∥Π) < ∞
+
+44
+
+and DS (Pθ⋆ , P0 ) > DS (PQ⋆ , P0 ) . Further, the mapping θ 7→ Pθ is continuous and identifiable.
+When the magnitude of misspecification is small, the Gibbs posterior is already highly
+performant, so that the PrO posterior can only achieve a small amount (if at all) of predictive superiority. Non-trivial misspecification is therefore sufficient for the PrO posterior
+to achieve predictive domination in any score.
+Theorem 3. Under Assumptions 1-4 and for n large enough but finite, it holds that
+E [DS (PQn , P0 )] < E[DS (PQ†n , P0 )], and E [DS (PQn , P0 ) − DS (PQ⋆ , P0 )] ≲ νn .
+The above result constitutes part (NT) in Theorem 1. The result shows that under
+suitable regularity conditions, PrO posteriors strictly dominate both Bayes posteriors and
+Gibbs posteriors in terms of their predictive performance. Crucially, this is not an asymptotic result: it holds in expectation for finite samples. While the result shows the superior
+predictive performance of PrO posteriors, it leaves several key questions unanswered: what
+is the qualitative behaviour of PrO posteriors? Can we characterise the shape they take,
+at least asymptotically? And how practically significant is the performance gap? Unfortunately, it is not possible to establish these properties in full generality: without further
+assumptions on the nature of the misspecification, we could be arbitrarily close to being
+in the trivially misspecified regime. In the next section, we further refine the nature of
+misspecification we consider to deduce an answer to these questions.
+
+8.4
+
+Misspecification with Convex Recovery
+
+From Definition 2, we recall that convex recovery implies the existence of some Q ∈ P(Θ)
+for which PQ can recover the data-generating process P0 . Interestingly, the PrO posterior
+
+45
+
+recovers the truth so long as P0 is convexly recoverable as either a purely discrete or
+continuous mixture.
+Assumption 5. One of the following is satisfied.
+(i) There exists Q⋆ ∈ P(Θ), with KL(Q⋆ ∥Π) < ∞, such that P0 =
+(ii) For some J ∈ N, P0 =
+
+R
+
+Pθ dQ⋆ (θ).
+
+PJ
+
+J−1
+J
+⋆
+are non-negative weights
+j=1 ωj Pθj , where (ωj )j=1 ∈ ∆
+
+summing to unity, and θj⋆ ∈ Θ. For Br,j = {θ : DS (Pθ , Pθj⋆ ) ≤ rj }, there are constants
+cS , dS > 0 so that, for any r ≤ r0 , Π(Br,j ) ≥ (r/cS )dS for j = 1, 2, . . . , J.
+Assumption 5 restricts the nature of the true model to be either a purely discrete
+or continuous mixture with components Pθ . Assumption 5(i) requires that this mixture
+is absolutely continuous with respect to the prior, via the condition KL(Q⋆ ∥Π) < ∞,
+while Assumption 5(ii) is its discrete analogue, and is an extension of Assumption 3 to
+J components. Similar to Assumption 3, Assumption 5(ii) requires that the prior should
+place enough mass near each component of the discrete mixture representing the true data
+generating process P0 .
+Theorem 4. Under Assumptions 1-5, and for n sufficiently large but finite, E [DS (PQn , P0 )] <
+E[DS (PQ†n , P0 )], and E [DS (PQn , P0 )] ≲ νn .
+The above result constitutes part (CR) in Theorem 1, and shows that, up to logarithmic
+factors, we recover the true data generating process P0 at the standard parametric rate of
+n−1/2 when Assumption 2′ is satisfied; if Assumption 2 is satisfied, we recover P0 at the
+slower of the rates rn and the standard parametric rate.
+
+8.4.1
+
+Correct Model Specification
+
+Theorems 3 and 4 prove that the PrO posterior has superior predictive properties to Gibbs
+and Bayes posteriors under model misspecification, but it is unclear what penalty we pay
+46
+
+when using the PrO posterior in the context of a well-specified model. The next result
+shows that there is little to worry about.
+Corollary 2. If Assumptions 1-2 and 5(ii) hold for J = 1 and θ1⋆ = θ⋆ , then E [DS (PQn , P0 )]−
+E[DS (PQ†n , P0 )] ≲ νn .
+The above result constitutes part (WS) in Theorem 1 and shows that there is little
+evidence for a loss in predictive statistical efficiency when using PrO posteriors in the
+well-specified regime: the worst case difference relative to Gibbs posteriors based on the
+same scoring rule is bounded by a vanishing sequence of order νn , which is log(n)/n1/2 in
+the case of Assumption 2′ and max{log(n)/n1/2 , rn } in the case of Assumption 2.
+Since Gibbs posteriors concentrate onto the true parameter θ∗ in well-specified models,
+Corollary 2 raises the question of whether or not PrO posteriors behave the same. Under
+additional assumptions, we can demonstrate that this is indeed the case. For P, Q ∈ P(Θ),
+let d1 (P, Q) denote a metric on the space of probability measures. Further, let d2 (P, Q) be
+a symmetric discrepancy on P(X ). Here, d2 (P, Q) need not be a metric, but is assumed to
+satisfy a weak triangle inequality.
+Assumption 6. (i) The map θ 7→ Pθ is continuous and identifiable, and there exist
+Q⋆ ∈ P(Θ) such that Q⋆ = argminQ∈P(Θ) DS (PQ , P0 ); (ii) there exists constant C, and
+ε > 0 such that, for any Q, Q′ ∈ P(Θ), if d2 (PQ , PQ′ ) ≤ ε, then d1 (Q, Q′ ) ≤ Cd2 (PQ , PQ′ );
+and (iii) for some α ≥ 1, d2 (PQ , PQ′ )α ≤ DS (PQ , PQ′ ).
+Assumption 6 allows us to translate concentration in the PrO posterior predictive PQn
+to concentration in the PrO posterior Qn defined on the parameter space. While part (i)
+is standard, part (ii) gives a form of identifiability condition of the posterior. In particular,
+it ensures that if two predictives PQ , PQ′ are close, then their underlying posteriors Q, Q′
+must also be close. Without such an assumption, concentration in the predictive space,
+47
+
+PQ , would not necessarily translate into concentration over Q. Lastly, part (iii) is a type
+of reverse Hölder continuity, that depends on the choice of score, distance, and the model
+class MΘ . Its purpose is to relate the score-induced discrepancy measure to a more regular
+measure of distance on the space of measures, which is needed to transfer convergence.
+While it is difficult to establish these conditions in general, they can be shown to hold for
+the squared MMD and the logarithmic scoring rule for several model classes of interest.
+1/α
+
+Corollary 3. If Assumptions 1-2, and 5-6 hold, then E[d1 (Qn , Q⋆ )] ≲ νn .
+Under various choices of α, d1 , and d2 , Corollary 3 applies to both the squared MMD
+(with α = 2 and d2 (P, Q) = MMD(P, Q)) and to the intractable exact logarithmic scoring
+rule (with α = 2 and d2 (P, Q) = TV(P, Q)), which satisfy Assumption 6 part (iii). For
+the special case of regular parametric models, the local equivalence between d2 (Pθ , Pθ⋆ )
+and the Euclidean distance ∥θ − θ⋆ ∥2 around the true value θ⋆ allows us to refine our
+conclusions. In particular, in this setting, for any posterior Q concentrating around θ⋆ ,
+the squared distance d2 (PQ , Pθ⋆ )2 behaves like ∥Eθ∼Q [θ] − θ⋆ ∥22 + Tr(Vθ∼Q [θ]). Thus, if
+we chose a squared metric d1 (Q, Q′ )2 on posterior distributions that locally behaved like
+∥Eθ∼Q [θ] − Eθ∼Q′ [θ]∥22 + ∥Vθ∼Q [θ] − Vθ∼Q′ [θ]∥2 for a suitable metric on matrices, we would
+recover posterior concentration rates towards θ⋆ directly in the Euclidean distance. Put
+differently, up to a local approximation, the notion of concentration used in Corollary 3
+via such a metric d1 is equivalent to the classical definition of posterior concentration with
+respect to the Euclidean distance for regular parametric models. In this setting, and if
+α = 2, our results would now translate to a concentration rate of n−1/4 in the Euclidean
+distance, which the reader will notice is slower than the standard n−1/2 rate that is usually
+achievable in parametric models. Critically, this behaviour is not a feature of the PrO
+posterior in particular, but of the temperature scaling employed within PAC-Bayes-type
+48
+
+bounds. Indeed, the n−1/4 rate we achieve in the Euclidean space is a direct consequence of
+minimising our PAC-Bayes-type generalisation bounds for the PrO posterior by choosing
+the rate λn ∝ n1/2 . Note that this result is entirely consistent with the application of PACBayes bounds to Gibbs posteriors: here too, one often obtains λn ∝ n1/2 by minimising
+generalisation bounds, which would then also result in a n1/4 concentration rate on the
+Euclidean space by the same arguments as before (see e.g. Alquier et al., 2016).
+
+Appendix
+Table of Contents
+A Notations
+
+50
+
+B Lemmas
+
+51
+
+B.1 Existence and uniqueness of the minimiser . . . . . . . . . . . . . . . . .
+
+54
+
+C Proofs of Main results
+
+56
+
+D Further experimental details
+
+64
+
+D.1 Normal location illustrations . . . . . . . . . . . . . . . . . . . . . . . .
+
+64
+
+D.2 Palmer penguins example . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+64
+
+49
+
+D.3 Regression with the MMD . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+66
+
+D.4 Linear regression example . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+67
+
+D.5 Binary classification example . . . . . . . . . . . . . . . . . . . . . . . .
+
+69
+
+D.6 River water flow example . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+69
+
+D.7 Time series cross-validation . . . . . . . . . . . . . . . . . . . . . . . . .
+
+70
+
+D.8 Conditional auto-regression example . . . . . . . . . . . . . . . . . . . .
+
+70
+
+E Computation
+
+A
+
+71
+
+E.1 Examples: MMD and logarithmic score . . . . . . . . . . . . . . . . . .
+
+71
+
+E.2 Practicalities and Implementation . . . . . . . . . . . . . . . . . . . . . .
+
+72
+
+Notations
+
+In this section we re-describe the main notations introduced in the main text to ensure the
+appendix is as self-contained as possible. We consider observed data x1:n = (x1 , . . . , xn ) for
+xi ∈ X and i = 1, . . . , n, where each xi is generated from the true unknown distribution P0 .
+We denote expectations of functions g : X → R with respect to X ∼ P0 by E[g(X)] or by
+EX∼P0 [g(X)] if we wish to emphasise the distribution over which integration occurs. The
+model class is given by MΘ := {Pθ : θ ∈ Θ} and a prior measure Π ∈ P(Θ) over elements of
+R
+MΘ . Likewise, let P(Θ) denote the set of distributions over Θ, and recall PQ = Pθ dQ(θ)
+for Q ∈ P(Θ). The function S(P, x) denotes a scoring rule for the distribution P , while
+S(P, P ) = EX∼P [S(P, X)] denotes the expected score, and DS (P, P0 ) = S(P, P0 )−S(P0 , P0 )
+is the divergence associated to P , evaluated at the true distribution P0 . Further, define
+Sn (Pθ ) = n1
+
+Pn
+
+1
+i=1 S(Pθ , xi ), and Ln (θ1:k ) = n
+
+Pn
+
+in Assumption 2′ .
+50
+
+i=1 L(θ1:k , xi ), where L(θ1:k , x) is as defined
+
+B
+
+Lemmas
+
+This section contains several useful lemmas that are used throughout the remainder of the
+text. First, we demonstrate our claim that PrO posterior based on any kernel scoring
+rule are tractable with k = 2. This implies that for scores based on squared maximum
+mean discrepancy (MMD2 ) and Cumulative Ranked Probability Score (CRPS), the function
+∆(Q, x) in (3) is constant in x.
+To prove this, take x, x′ ∈ X , let κ(x, x′ ) denote a positive-definite kernel function with
+feature map ϕ : X → H, such that κ(x, x′ ) = ⟨ϕ(x), ϕ(x′ )⟩H . For fixed θ ∈ Θ, define
+R
+the mean embedding µθ ∈ H by µθ := ϕ(z) dPθ (z) and the inner product ⟨µθ , µθ′ ⟩H =
+RR
+κ(z, z ′ ) dPθ (z)dPθ′ (z ′ ). Following Gneiting et al. (2007), all kernel scoring rules can be
+expressed as S(P, x) = EX,X ′ ∼P [κ(X, X ′ )] − 2EX∼P [κ(X, x)] + κ(x, x).
+Lemma 2. For any kernel scoring rule, and for all x ∈ X : (i) the score Pθ 7→ S(Pθ , x) is
+R
+convex; (ii) S(PQ , x) = L(θ1:2 , x)dQ2 (θ1:2 ) with L(θ1:2 , x) = S(Pθ1 , x) − 21 ∥µθ1 − µθ2 ∥2H .
+Proof. To see that (i) is satisfied, use the feature map representation to write the score as
+S(Pθ , x) = ∥µθ ∥2H − 2⟨µθ , ϕ(x)⟩H + ∥ϕ(x)∥2H .
+The map Pθ 7→ µθ is linear, so that Pθ 7→ ∥µθ ∥2H is quadratic. Thus, Pθ 7→ S(Pθ , x) is the
+composition of a linear map and a convex function, and so is convex. To deduce the second
+result, write
+Z
+ Z
+Z
+ Z
+S
+Pθ dQ(θ), x = S(Pθ , x)dQ(θ) + S
+Pθ dQ(θ), x − S(Pθ , x)dQ(θ) .
+|
+{z
+}
+=−∆(Q,x) in (3)
+
+Expand the first integral, and use the mean embedding definition for µθ , to write
+Z Z Z Z
+S (PQ , x) =
+κ(z, z ′ ) dPθ (z)dPθ′ (z ′ )dQ(θ)dQ(θ′ ) = ⟨Eθ∼Q (µθ ), Eθ′ ∼Q (µθ′ )⟩
+= ∥Eθ∼Q (µθ )∥2H .
+51
+
+Similarly, write
+Z
+
+Z Z Z
+S (Pθ , x) dQ(θ) =
+
+κ(z, z ′ ) dPθ (z)dPθ (z ′ )dQ(θ) = Eθ∼Q [∥µθ ∥2H ].
+
+Hence, for ∆(Q, x) as in (3),
+
+
+−∆(Q, x) = ∥Eθ∼Q [µθ ]∥2H − Eθ∼Q [∥µθ ∥2H ] = −Eθ∼Q ∥µθ − Eθ′ ∼Q [µθ′ ]∥2H
+Z
+1
+=−
+∥µθ − µθ′ ∥2H dQ(θ)dQ(θ′ ).
+2
+
+Lemma 3. Under Assumptions 1-3, for any λn ≥ dS /r0 , we have
+
+Z
+E
+
+dS
+DS (Pθ , P0 )dQ†n (θ) ≤ DS (Pθ⋆ , P0 ) +
+λn
+
+Furthermore, for the specific choice λn = n1/2
+
+p
+
+
+log
+
+e · cS λn
+dS
+
+
+
+λn C 2
+.
++
+n
+
+dS /C 2 log (e · cS /dS ), for any n ≥
+
+dSC 2 
+e·c
+2
+r0 log d S
+S
+
+we have
+i
+h 
+E DS PQ†n , P0 ≤ DS (Pθ⋆ , P0 ) + C (log n/n)1/2 .
+Proof. The proof follows similar arguments to those used to prove Lemma 1 but where we
+take L(θ, θ′ ) = R(θ) = S(Pθ , P0 ) − S(P0 , P0 ) and Ln (θ, θ′ ) = Rn (θ) = Sn (Pθ ) − Sn (P0 ). If
+Assumption 2′ is satisfied for R(θ) − Rn (θ), then
+Z
+1≥E
+
+eλn {R(θ)−Rn (θ)}−
+
+2
+λ2
+nC
+n
+
+dΠ(θ).
+
+Apply the Donsker-Varadhan lemma with h(θ) = R(θ) − Rn (θ) to obtain
+R
+
+1 ≥ EesupQ∈P(Θ) λn [R(θ)−Rn (θ)]dQ(θ)−KL(Q∥Π)−
+
+2
+λ2
+nC
+n
+
+.
+
+Apply Jensen’s inequity and take logs to obtain
+
+0 ≥ E sup
+Q∈P(Θ)
+
+Z
+λn
+
+λ2 C 2
+[R(θ) − Rn (θ)] dQ(θ) − KL(Q∥Π) − n
+n
+52
+
+
+.
+
+,
+
+Since the above is true for any Q ∈ P(Θ), it is also true for Q = Q†n . Applying this choice
+and re-arranging terms yields
+Z
+E
+
+R(θ)dQ†n (θ) ≤ E
+
+Z
+
+KL(Q†n ∥Π) λn C 2
++
+Rn (θ)dQ†n (θ) +
+λn
+n
+
+
+.
+
+Use the definitions of R(θ) and Rn (θ), and Assumption 1, to obtain the inequality
+h
+i
+E S(PQ†n , P0 ) − S(P0 , P0 )
+
+Z
+†
+≤E
+{S(Pθ , P0 ) − S(P0 , P0 )}dQn (θ)
+Z
+
+λn C 2
+KL(Q†n ∥Π)
+†
+≤E
++
+{Sn (Pθ ) − Sn (P0 )} dQn (θ) +
+λn
+n
+
+Z
+λn C 2
+KL(Q∥Π)
++
+≤E inf
+{Sn (Pθ ) − Sn (P0 )} dQ(θ) +
+Q∈P(Θ)
+λn
+n
+Z
+
+KL(Q∥Π)
+λn C 2
+=E inf
+.
+{Sn (Pθ ) − Sn (P0 )} dQ(θ) +
++
+Q∈P(Θ)
+λn
+n
+
+(8)
+
+(9)
+
+Define the distributions ΠBr indexed by a radius r > 0 with corresponding density:
+dΠBr (θ) :=
+
+1(θ ∈ Br )dΠ(θ)
+Π(Br )
+
+with Br := {θ ∈ Θ : DS (Pθ , P0 ) ≤ DS (Pθ⋆ , P0 ) + r} .
+
+We can now further upper bound (8) by restricting the infimum on the right-hand side of
+(9) to distributions belonging to the set {ΠBr : r > 0} ⊂ P(Θ), which yields
+
+Z
+E
+
+
+KL(ΠBr ∥Π)
+λn C 2
+{Sn (Pθ ) − Sn (P0 )} dΠBr (θ) +
++
+λn
+n
+Z
+
+KL(ΠBr ∥Π)
+λn C 2
+≤ inf
+DS (Pθ , P0 )dΠBr (θ) +
++
+r>0
+λn
+n
+(Z
+)
+log {1/Π(Br )}
+λn C 2
+= inf
+DS (Pθ , P0 )dΠBr (θ) +
++
+r>0
+λn
+n
+(Z
+)
+dS log (cS /r)
+λn C 2
+≤ inf
+{DS (Pθ⋆ , P0 ) + r} dΠBr (θ) +
++
+0<r≤r0
+λn
+n
+
+
+dS log (cS /r)
+λn C 2
++
+.
+= DS (Pθ⋆ , P0 ) + inf
+r+
+0<r≤r0
+λn
+n
+
+DS (Pθ , P0 )dQ†n (θ) ≤ E inf
+r>0
+
+Z
+
+53
+
+As soon as λn ≥ drS0 , taking r = λdSn ≤ r0 then leads to
+
+Z
+E
+
+
+cS λn
+λn C 2
+log
++
+dS
+n
+
+
+e · cS λn
+λn C 2
+dS
+log
++
+,
+= DS (Pθ⋆ , P0 ) +
+λn
+dS
+n
+
+
+dS
+dS
+DS (Pθ , P0 )dQ†n (θ) ≤ DS (Pθ⋆ , P0 ) +
++
+λn λn
+
+which establishes the first result.
+r
+1/2
+
+To obtain the second, substitute λn = n
+dSC 2 
+e·c
+2
+r0 log d S
+S
+
+dS
+C2
+
+log
+
+
+
+e·cS
+dS
+
+
+
+in the bound, for n ≥
+
+, to obtain
+
+Z
+DS (Pθ , P0 )dQ†n (θ)
+
+E
+
+r  
+e
+·
+c
+S
+S
+√ log n1/2 √
+√ s 
+
+log e·c
+d
+S
+C dS
+e · cS
+C dS
+C dS
+r  
+≤ DS (Pθ⋆ , P0 ) + 1/2
+log
++ 1/2
+,
+n
+n
+dS
+e·cS
+log dS
+
+
+and by convexity, Assumption 1 implies that E[DS (PQ†n , P0 )] ≤ E
+
+R
+
+DS (Pθ , P0 )dQ†n (θ),
+
+which ends the proof.
+
+B.1
+
+Existence and uniqueness of the minimiser
+
+It is interesting to investigate the sufficient conditions under which the objective of (7)
+admits a unique minimiser. We posit two assumptions in order to do so: one on the score
+and the other on the prior.
+Lemma 4. Suppose that Assumption 1 holds and further that the score is bounded from
+below so that inf Q∈P(Θ) L (Q) = M > −∞. Assume further that the prior Π admits density
+with respect to the Lebesgue measure dΠ(θ) ∝ exp{−U (θ)} for U : Θ → R such that:
+(i) there exist constants c > 0 and c′ ∈ R such that for all θ ∈ Θ,
+∇θ U (θ) · θ ≥ c∥θ∥2 + c′ ,
+and,
+54
+
+(ii) ∇θ U is Lipschitz continuous.
+Then there exists a unique measure Qn ∈ P(Θ) such that Qn = arginf Q∈P(Θ) L , and further
+this Qn is characterised by the implicit equation
+
+n
+ λ X
+δS(PQ , xi )
+n
+dQn (θ) ∝ dΠ(θ) · exp −
+ n
+δQ
+i=1
+
+(θ)
+
+
+
+
+.
+
+
+
+Q=Qn
+
+Proof. We have by Assumption 1 that the score S(·, x) is convex is its first argument. In
+combination with the fact that the mapping Q 7→ PQ is linear, we have the the mapping
+Q 7→ S(PQ , x) is convex. The existence and uniqueness of a minimiser is then provided
+under the same conditions in Proposition 2.5 of Hu et al. (2020), and we point the reader
+to their Section 4 for a proof.
+To characterise the form of this minimiser, we take the functional derivative of (7) with
+respect to Q, set it equal to zero, and solve for Q. We begin by noting that the functional
+derivative of the KL regulariser evaluated at θ is given by
+
+dQ
+(θ) ,
+dΠ
+
+(10)
+
+λn X δS(PQ , xi )
+(θ).
+n i=1
+δQ
+
+(11)
+
+
+1 + log
+while that of the score term is
+n
+
+By the linearity of functional derivatives, setting the sum of (10) and (11) equal to zero
+and removing constant terms, we find that Qn must satisfy
+n
+
+λn X δS(PQ , xi )
+0=
+(θ) + log
+n i=1
+δQ
+Q=Qn
+
+
+
+dQn
+(θ)
+dΠ
+
+
+
+whence rearranging yields the stated result.
+The prior coercivity conditions of (i) and (ii) are satisfied, for instance, by choosing the
+prior to be a multivariate standard Gaussian prior, common to many applications (Hu et al.,
+55
+
+2020). And the condition that the infimum be attained at non-infinite M is immediate, for
+example, for the squared MMD under bounded kernels (see also Shen et al., 2025, Theorem
+1). In the case of the log score, we refer the reader to Liu et al. (2025, Proposition 1) who
+establish the necessary conditions.
+
+C
+
+Proofs of Main results
+
+Proof of Lemma 1. The result depends on slightly different arguments depending on whether
+Assumption 2 or Assumption 2′ is satisfied. Therefore, we break the result into cases.
+Scores Satisfying Assumption 2′ . Consider any fixed integer k > 1. Recall Qk =
+Nk
+
+j=1 Q.
+
+Apply the Donsker-Varadhan Lemma with h(θ1:k ) = kλn {L(θ1:k ) − Ln (θ1:k )}, to
+
+see that, P0 -almost surely, ∀Q ∈ P(Θ), we have
+
+Z
+
+Z
+k
+
+k
+
+k
+
+kλn {L(θ1:k ) − Ln (θ1:k )} dQ (θ1:k ) ≤ KL(Q ∥Π ) + log
+
+ekλn {L(θ1:k )−Ln (θ1:k )} dΠk (θ1:k ).
+
+Rearranging terms, we have P0 -almost surely, ∀Q ∈ P(Θ),
+
+Z
+
+Z
+L(θ1:k )dQk (θ1:k ) ≤
+
+KL(Qk ∥Πk ) log
+Ln (θ1:k )dQk (θ1:k )+
++
+kλn
+
+R
+
+ekλn {L(θ1:k )−Ln (θ1:k )} dΠk (θ1:k )
+,
+kλn
+
+R
+
+ekλn {L(θ1:k )−Ln (θ1:k )} dΠk (θ1:k )
+.
+kλn
+
+and P0 -almost surely, for Q = Qn in particular:
+
+Z
+
+Z
+L(θ1:k )dQkn (θ1:k ) ≤
+
+KL(Qkn ∥Πk ) log
+Ln (θ1:k )dQkn (θ1:k )+
++
+kλn
+
+Taking expectation with respect to P0 on both sides and applying Jensen’s inequality to
+the log then leads to:
+
+Z
+
+Z
+E
+
+Ln (θ1:k )dQkn (θ1:k ) +
+
+L(θ1:k )dQkn (θ1:k ) ≤ E
+
+Z
+≤E
+
+Ln (θ1:k )dQkn (θ1:k ) +
+
+56
+
+EKL(Qkn ∥Πk )
+kλn
+EKL(Qkn ∥Πk )
+kλn
+
++
++
+
+E log
+
+R
+
+ekλn {L(θ1:k )−Ln (θ1:k )} dΠk (θ1:k )
+kλn
+
+log E
+
+R
+
+ekλn {L(θ1:k )−Ln (θ1:k )} dΠk (θ1:k )
+.
+kλn
+
+The last term on the right-hand-side is controlled using Tonelli’s theorem and Assumption
+2′ (ii), under which:
+
+Z
+
+Z
+ekλn {L(θ1:k )−Ln (θ1:k )} dΠk (θ1:k ) = log
+
+log E
+
+Eekλn {L(θ1:k )−Ln (θ1:k )} dΠk (θ1:k ) ≤
+
+k 2 λ2n C 2
+,
+n
+
+which then gives
+
+Z
+E
+
+Z
+
+EKL(Qkn ∥Πk ) λn kC 2
++
+kλn
+n
+"Z
+#
+KL(Qkn ∥Πk )
+λn kC 2
+=E
++
+.
+Ln (θ1:k )dQkn (θ1:k ) +
+kλn
+n
+
+L(θ1:k )dQkn (θ1:k ) ≤ E
+
+Ln (θ1:k )dQkn (θ1:k ) +
+
+Recall that Qn is the minimiser of the quantity inside the expectation on the right-hand-side
+to finally write:
+"
+
+Z
+L(θ1:k )dQkn (θ1:k ) ≤ E
+
+E
+
+Now, we lower bound
+
+R
+
+(Z
+inf
+
+Q∈P(Θ)
+
+KL(Qk ∥Πk )
+Ln (θ1:k )dQk (θ1:k ) +
+kλn
+
+)#
++
+
+λn kC 2
+.
+n
+
+L(θ1:k )dQkn (θ1:k ) on the left-hand-side: using the convexity in
+
+Assumption 1 and the structure of the loss in Assumption 2′ (i), we have
+Z
+S
+
+
+Pθ dQn (θ), P0
+
+Z
+S(Pθ , P0 )dQn (θ) − E{∆(Qn , X)}
+
+=
+Z
+≤
+
+Z
+S(Pθ , P0 )dQn (θ) −
+
+Q∈P(Θ)
+
+Z
+
+δ(θ1:k )dQ (θ1:k ) ≡
+
+where δ(θ1:k ) = E[δ(θ1:k , X)]. Recalling that PQn =
+(Z
+E [S (PQn , P0 )] ≤ E inf
+
+k
+
+L(θ1:k )dQn (θ1:k ),
+
+R
+
+Pθ dQn (θ), this gives us
+)
+k
+k
+KL(Q
+∥Π
+)
+λn kC 2
+Ln (θ1:k )dQk (θ1:k ) +
++
+.
+kλn
+n
+
+Using Assumption 2′ (i), we can rewrite equation (12) as
+"
+(Z
+
+KL(Qk ∥Πk )
+E {S (PQn , P0 )} ≤ E inf
+Ln (θ1:k )dQk (θ1:k ) +
+Q∈P(Θ)
+kλn
+
+
+
+KL(Qk ∥Πk )
+λn kC 2
+= E inf
+Sn (PQ ) +
++
+Q∈P(Θ)
+kλn
+n
+
+
+KL(Qk ∥Πk )
+λn kC 2
+≤ inf
+S(PQ , P0 ) +
++
+.
+Q∈P(Θ)
+kλn
+n
+57
+
+)#
++
+
+λn kC 2
+n
+
+(12)
+
+Recalling that S(P0 , P0 ) = ESn (P0 ), we subtract S(P0 , P0 ) from both sides and write
+E{DS (PQn , P0 )} = E {S (PQn , P0 ) − S(P0 , P0 )}
+
+
+λn kC 2
+KL(Qk ∥Πk )
++
+≤ inf
+S(P0 , P0 ) − S(PQ , P0 ) +
+Q∈P(Θ)
+kλn
+n
+
+
+KL(Qk ∥Πk )
+λn kC 2
+= inf
+D(PQ , P0 ) +
++
+Q∈P(Θ)
+kλn
+n
+
+
+KL(Q∥Π)
+λn kC 2
+= inf
+D(PQ , P0 ) +
++
+.
+Q∈P(Θ)
+λn
+n
+Scores Satisfying Assumption 2. For scores that do not satisfy Assumption 2′ , the
+above proof technique breaks down. We can, however, derive a similar bound using the
+variational definition of Qn .
+From the definition of D(PQ , P0 ), we have
+E[DS (PQn , P0 )] = E[S(PQn , P0 )] − S(P0 , P0 )
+
+(13)
+
+= E[Sn (PQn )] − S(P0 , P0 ) − {E[Sn (PQn )] − E[S(PQn , P0 )]}
+≤ E[Sn (PQn )] − S(P0 , P0 ) + E sup |Sn (PQ ) − S(PQ , P0 )|
+Q∈PΠ (Θ)
+
+≤ E[Sn (PQn )] − S(P0 , P0 ) + rn ,
+
+(14)
+
+where the last line follows from Assumption 2. Using the variational definition of Qn , we
+have
+
+
+KL(Qn ∥Π)
+KL(Q∥Π)
+Sn (PQn ) ≤ Sn (PQn ) +
+= inf
+Sn (PQ ) +
+.
+Q∈P(Θ)
+λn
+λn
+Taking expectations then yields
+
+
+
+
+KL(Q∥Π)
+KL(Q∥Π)
+E Sn (PQn ) ≤ E inf
+Sn (PQ ) +
+≤ inf
+S(PQ , P0 ) +
+.
+Q∈P(Θ)
+Q∈P(Θ)
+λn
+λn
+
+
+
+
+(15)
+
+58
+
+Plugging equation (15) into (14) yields
+E[DS (PQn , P0 )] = E[S(PQn , P0 )] − S(P0 , P0 )
+
+
+KL(Q∥Π)
+≤ inf
+S(PQ , P0 ) +
+− S(P0 , P0 ) + rn
+Q∈P(Θ)
+λn
+
+
+KL(Q∥Π)
++ rn .
+= inf
+DS (PQ , P0 ) +
+Q∈P(Θ)
+λn
+The stated result now follows from the definition of νn .
+Proof of Theorem 2. From the convexity in Assumption 1,
+Z
+DS (PQ , P0 ) ≤
+
+DS (Pθ , P0 )dQ(θ).
+
+Applying bound in the RHS of Lemma 1 delivers
+
+
+
+KL(Q∥Π)
+E[DS (PQn , P0 )] ≤ inf
+DS (PQ , P0 ) +
++ νn
+Q∈P(Θ)
+λn
+
+Z
+KL(Q∥Π)
++ νn .
+≤ inf
+DS (Pθ , P0 )dQ(θ) +
+Q∈P(Θ)
+λn
+
+(16)
+
+Recalling the definition of Br in Assumption 3, define the candidate density
+dΠBr (θ) :=
+
+1(θ ∈ Br )dΠ(θ)
+.
+Π(Br )
+
+Now, the RHS of the inequality in (16) is true for any Q ∈ P(Θ), and remains true for
+Q = ΠBn . For 0 ≤ r ≤ r0 , over Br , DS (Pθ , P0 ) ≤ DS (Pθ⋆ , P0 ) + r, so that we obtain
+
+KL(ΠkBr ∥Πk )
+E [DS (PQn , P0 )] ≤ inf
+DS (Pθ , P0 )dΠBr (θ) +
++ νn ,
+r>0
+kλn
+Z
+
+KL(ΠBr ∥Π)
+= inf
+DS (Pθ , P0 )dΠBr (θ) +
++ νn
+r>0
+λn
+Z
+
+log {1/Π(Br )}
+= inf
+DS (Pθ , P0 )dΠBr (θ) +
++ νn ,
+r>0
+λn
+Z
+
+dS log(cS /r)
+≤ inf
+{DS (Pθ⋆ , P0 ) + r} dΠBr (θ) +
++ νn
+r0 ≥r>0
+λn
+
+
+dS log(cS /r)
+= DS (Pθ⋆ , P0 ) + inf
+r+
++ νn .
+r0 ≥r>0
+λn
+Z
+
+59
+
+The remainder of the proof follows the same as in the proof of Lemma 3.
+A similar argument holds for Q†n .
+
+Proof of Theorem 3. Assumption 4 ensures the existence of some Q⋆ ∈ arg inf Q∈P(Θ) DS (PQ , P0 )
+such that
+JenGap := DS (Pθ⋆ , P0 ) − DS (PQ⋆ , P0 ) > 0.
+From Lemma 1, we can obtain:
+
+
+Z
+
+E DS
+
+
+Pθ dQn (θ), P0
+
+
+ Z
+
+KL(Q∥Π)
++ νn
+Pθ dQ(θ), P0 +
+≤ inf
+DS
+Q∈P(Θ)
+λn
+
+ Z
+
+KL(Q∥Π)
+= inf DS
++ νn
+Pθ dQ(θ), P0 +
+Q≪Π
+λn
+
+Z
+KL(Q⋆ ∥Π)
+⋆
+Pθ dQ (θ), P0 +
++ νn .
+(17)
+≤ DS
+λn
+
+Adding and subtracting DS (Pθ⋆ , P0 ) and using the definition of JenGap, we can re-arrange
+(17) as
+ Z
+
+KL(Q⋆ ∥Π)
++ νn − JenGap.
+E DS
+Pθ dQn (θ), P0
+≤ DS (Pθ⋆ , P0 ) +
+λn
+Since, by Assumption 4, Q⋆ is such that KL(Q⋆ ∥Π) < ∞, for n large enough we have
+KL(Q⋆ ∥Π)
+1
++ νn ≤ JenGap ,
+λn
+4
+so that
+
+
+Z
+
+E DS
+
+
+Pθ dQn (θ), P0
+
+3
+≤ DS (Pθ⋆ , P0 ) − JenGap .
+4
+
+Furthermore, from the continuity of θ 7→ Pθ in Assumption 4, and the concentration in
+Lemma 3, we have for n large enough but finite,
+
+E DS
+
+Z
+
+Pθ dQ†n (θ), P0
+
+
+≥ DS (Pθ⋆ , P0 ) −
+
+60
+
+JenGap
+.
+4
+
+Therefore, for n large enough but finite,
+
+
+Z
+
+E DS
+
+
+Pθ dQn (θ), P0
+
+3
+≤ DS (Pθ⋆ , P0 ) − JenGap
+4
+ Z
+
+1
+†
+≤ E DS
+Pθ dQn (θ), P0
+− JenGap
+2
+ Z
+
+< E DS
+Pθ dQ†n (θ), P0 .
+
+To obtain the second result, return to equation (17), and use the fact that Q⋆ ∈
+arginf Q∈P(Θ) DS (PQ , P0 ) satisfies KL(Q⋆ ∥Π) < ∞, by Assumption 4, to obtain
+
+
+Z
+
+E DS
+
+
+Pθ dQn (θ), P0
+
+
+≤
+
+inf
+Q∈P(Θ)
+
+Z
+DS
+
+
+Pθ dQ(θ), P0
+
+KL(Q∥Π)
++
+λn
+
+
++ νn
+
+KL(Q⋆ ∥Π)
+≤ DS (P , P0 ) +
++ νn
+λn
+C
+≤ DS (PQ⋆ , P0 ) +
++ νn .
+λn
+Q⋆
+
+In the case of Assumption 2′ , νn = log(n)/n1/2 so that choosing λn ∝ n1/2 / log(n) yields the
+stated result. In the case of Assumption 2, νn = min{log(n)/n1/2 , rn }, and again choosing
+λn ∝ n1/2 log(n) also implies the stated result.
+Proof of Theorem 4. We break the result up into cases depending on whether (i) or (ii) in
+Assumption 5 is satisfied.
+Assumption 5(i). From equation (17) in the proof of Theorem 3, we have that
+
+ Z
+
+KL(Q∥Π)
++ νn
+E [DS (PQn , P0 )] ≤ inf
+DS
+Pθ dQ(θ), P0 +
+Q∈P(Θ)
+λn
+ Z
+
+
+KL(Q∥Π)
+≤ inf DS
+Pθ dQ(θ), P0 +
++ νn
+Q≪Π
+λn
+= DS (PQ⋆ , P0 ) +
+
+C
++ νn ,
+λn
+
+where the equality follows from the fact that KL(Q⋆ ∥Π) < ∞, and the last inequality
+follows by taking λn ∝ n1/2 / log(n) so that C/λn + νn ≤ C ′ · νn , for n large enough. We
+remind the reader that DS (PQ⋆ , P0 ) = 0 under Assumption 5(i).
+61
+
+Since DS (PQ⋆ , P0 ) = 0 under convex recovery, we have
+JenGap = DS (Pθ⋆ , P0 ) > 0,
+and there exist an n large enough so that
+DS (Pθ⋆ , P0 )
+.
+2
+h 
+i
+Further, for n large enough, as in the proof of Theorem 3, E DS PQ†n , P0 > DS (P2θ⋆ ,P0 ) .
+E [DS (PQn , P0 )] ≤ C ′ νn ≤
+
+Putting these inequalities together, we see that, for n large enough,
+E [DS (PQn , P0 )] ≤
+
+h 
+i
+DS (Pθ⋆ , P0 )
+< E DS PQ†n , P0 .
+2
+
+Assumption 5(ii). Recall Br,j = {θ : DS (Pθ , Pθj⋆ ) ≤ r}, denote dQ⋆r (θ) =
+
+PK
+
+⋆
+j=1 ωj dΠr,j (θ)
+
+where ω ∈ ∆K−1 , and
+dΠ⋆r,j (θ) =
+
+
+
+
+dΠ(θ)
+
+ Π(B
+)
+
+if θ ∈ Br,j
+
+
+
+
+0
+
+else
+
+r,j
+
+.
+
+Using Q⋆r within equation (17) in the proof of Theorem 3, yields
+E [DS (PQn , P0 )]
+
+ Z
+
+λn kCk2
+KL(Q∥Π)
+≤ inf
++
+DS
+Pθ dQ(θ), P0 +
+Q∈P(Θ)
+λn
+n
+
+ Z
+
+KL(Q⋆r ∥Π)
+≤ inf DS
++ νn
+Pθ dQ⋆r (θ), P0 +
+r>0
+λn
+
+P
+
+!
+K
+⋆
+Z
+K
+K
+
+
+∥Π
+KL
+ω
+Π
+X
+X
+j=1 j r,j
+= inf DS
+ωj Pθ dΠ⋆r,j (θ),
+ωj Pθj⋆ +
++ νn
+r>0 
+
+λ
+n
+j=1
+j=1
+(K
+)
+PK
+Z
+⋆
+
+
+X
+ω
+KL
+Π
+∥Π
+j
+r,j
+j=1
++ νn
+≤ inf
+ωj
+DS Pθ , Pθj⋆ dΠ⋆r,j (θ) +
+r>0
+λ
+n
+j=1
+(K
+)
+PK
+
+
+X Z
+ω
+log{1/Π(B
+)}
+j
+r,j
+j=1
+≤ inf
+ωj
+DS Pθ , Pθj⋆ dΠ⋆r,j (θ) +
++ νn
+r>0
+λn
+j=1
+(K
+)
+
+
+X Z
+d
+log(c
+/r)
+s
+s
+≤ inf
+ωj
+DS Pθ , Pθj⋆ dΠ⋆r,j (θ) +
++ νn
+r>0
+λ
+n
+j=1
+
+
+ds log(cs /r)
+≤ inf r +
++ νn .
+r>0
+λn
+62
+
+Optimising r using similar arguments to the end of Lemma 3 yields the stated result.
+Proof of Corollary 2. The proof follows directly from Theorem 4; in particular,
+E [DS (PQn , P0 )] − E[DS (PQ†n , P0 )] ≤ E [DS (PQn , P0 )] ≲ νn .
+
+Proof of Corollary 3 . Since d2 (·, ·) satisfies a weak triangle inequality, for some C > 0,
+E[d2 (PQn , PQ⋆ )] ≤ CE{d2 (PQn , P0 ) + d2 (PQ⋆ , P0 )}
+= Cd2 (PQn , P0 )
+= Cd2 (PQn , PQ⋆ ),
+
+(18)
+
+where the equalities follows from the definition of convex recovery. Recall that, by Theorem
+4, E[DS (PQn , P0 )] ≤ νn . Hence, from Assumption 6(iii), and concavity of the map x 7→ x1/α
+for α ≥ 1,
+E[d2 (PQn , PQ⋆ )] ≤E[DS (PQn , PQ⋆ )1/α ] ≤ {E[DS (PQn , PQ⋆ )]}1/α ≤ νn1/α .
+
+(19)
+
+From equation (19), and Assumption 6(i) - identifiability and continuity of θ 7→ Pθ conclude that PQn → P0 . Hence, by Assumption 6(ii) and the convergence in (19), there
+exists n1 large enough so that, for n ≥ n1 ,
+E[d1 (Qn , Q⋆ )] ≤ CE[d2 (PQn , PQ⋆ )].
+Hence, for n ≥ n1 , we can apply the above and equation (19) to obtain
+E[d1 (Qn , Q⋆ )] ≤ CE[d2 (PQn , PQ⋆ )] ≤ C · νn1/α .
+
+63
+
+D
+
+Further experimental details
+
+D.1
+
+Normal location illustrations
+
+We simulate n = 1, 000 data from each of the data-generating processes:
+yi ∼ N(0, 12 )
+
+
+
+
+N(−2, 12 ),
+yi ∼
+
+
+
+N(2, 12 ),
+
+
+
+
+
+N(−2, 12 ),
+
+
+
+
+
+yi ∼ N(0, 12 ),
+
+
+
+
+
+
+
+
+N(2, 12 ),
+
+(“Well-specified”)
+with probability 0.2
+(“Mixture”)
+with probability 0.8
+with probability 1/3
+with probability 1/3
+
+(“Claw”)
+
+with probability 1/3
+
+yi ∼ Student − t1.5
+
+(“Heavy-tails”).
+
+For each of these, we estimate the MMD with m = 128 Monte Carlo samples, run the
+Wasserstein gradient flow for p = 32 particles for all data, and for 4, 000 iterations similarly
+to MALA. We use λn = n. We show the posterior distributions of the Gibbs and PrO
+posteriors and the Wasserstein gradient flow trajectories in Figure 12, and in Figure 13 we
+show their induced predictive distributions.
+
+D.2
+
+Palmer penguins example
+
+The data containing n = 342 measurements of the penguins’ bill lengths and depths in
+millimetres were imported from the palmerpenguins package in Python, and jointly centred
+to have zero-mean and scaled to have unit variance. To these data we fit a Gaussian kernel
+density estimator implemented in sklearn (Pedregosa et al., 2011), where the bandwidth
+was chosen with cross-validation across a logarithmic grid. We also fit for comparison a
+64
+
+Figure 12: In the left-most column we show the particle trajectories from a Wasserstein gradient flow
+targeting the PrO posterior compared to the path of a single MALA chain targeting the Gibbs
+posterior. In the two axes on the right we show the empirical posterior densities from these two
+trajectories.
+
+PrO posterior over the mean of an the isotropic bivariate Gaussian location model class,
+MΘ = {N(θ, σ 2 I) : θ ∈ R2 }, where σ 2 = 0.2 is fixed, and which we fit with the squared
+
+65
+
+Figure 13: A comparison of PrO and Gibbs posterior predictive distributions in a well-specified
+and three misspecified regimes. Grey bars indicate a histogram of the observed data.
+
+MMD score. This same bandwidth was used for fitting the PrO posterior with the squared
+MMD as fitting the KDE. We estimated the PrO posterior under the squared MMD loss
+approximated with m = n samples, λn = 103 , and the Wasserstein gradient flow was run
+with p = 32 particles for 10, 000 iterations.
+
+D.3
+
+Regression with the MMD
+
+Denote d = dim(Θ). In Sections 2, 5.2, and 5.3 we fit the linear models under the squared
+2
+d
+MMD loss. Denote the model class as {N(yi ; x⊤
+i θ, σ ) : θ ∈ R }, for i = 1, . . . , n where
+
+σ 2 > 0 is treated as fixed and estimated from data:
+2
+
+σ̂ =
+
+n
+X
+(yi − ŷi )
+
+n−d−1
+i=1
+
+;
+
+ŷ = X β̂;
+
+β̂ = (X ⊤ X)−1 X ⊤ y.
+
+In the case of the Gibbs posterior, we use the efficient estimator proposed by Alquier and
+Gerber (2024, Equation 6):
+Sn (Pθ ) =
+
+n
+X
+
+ℓ† (θ; Xi , yi )
+
+i=1
+
+where for all θ ∈ Θ, x ∈ Rd , and y ∈ R,
+ℓ† (θ; X, y) = EY,Y ′ ∼Pθ (·|x) {κ(Y, Y ′ ) − 2κ(Y, y)}.
+
+66
+
+In practice we estimate both of these expectations with m Monte Carlo draws:
+m
+XX
+2
+1
+κ(Yi , Yj′ ) − κ(Yi , y),
+ℓ (θ; X, y) ≈
+m(m − 1) i̸=j j=1
+m
+†
+
+for Yi , Yi′ ∼ Pθ (· | x).
+In the case of the PrO posterior, we instead use the tandem loss
+Ln (ϑ, θ) =
+
+n
+X
+
+ℓ(ϑ, θ; Xi , yi )
+
+i=1
+
+where now
+ℓ(ϑ, θ; X, y) = E Y ∼Pϑ (·|x) {κ(Y, Y ′ ) − κ(Y, y) − κ(Y ′ , y)}.
+Y ′ ∼Pθ (·|x)
+
+And again, each of these expectations can be approximated by Monte Carlo:
+m
+
+ℓ(ϑ, θ; X, y) ≈
+
+m
+
+1
+1 XX
+1
+′
+κ(Y
+,
+y)
+−
+κ(Yi′ , y),
+κ(Y
+,
+Y
+)
+−
+i
+i
+j
+m2 i=1 j=1
+m
+m
+
+for Yi ∼ Pϑ (· | x) and Yi′ ∼ Pθ (· | x).
+In both cases, we use a Gaussian kernel where the length scale is chosen according to
+the median heuristic (Garreau et al., 2018).
+
+D.4
+
+Linear regression example
+
+In Section 2 we generate n = 500 training data for each of the three misspecification
+regimes. The log point-wise predictive density (lppd) is estimated from S samples from
+the posterior {θ(s) }Ss=1 at a test point {Xi , yi } through
+(
+lppdi = log
+
+)
+S
+1X
+P (s) (yi | Xi ) .
+S s=1 θ
+
+and similarly we compute the test point-wise MMD2i with posterior draws. We subsequently
+compute the expected log predictive density (elpd) as elpdtest =
+
+Pntest
+i=1
+
+lppdi , and likewise
+
+for MMD2test , for ntest = 1, 000. In Figure 2 we show the mean and standard error of the
+67
+
+a normal approximation to the difference in these metrics inline with Sivula et al. (2025,
+in
+− lppdGibbs
+Equations 9 and 10). Denoting the point-wise difference as ∆i = lppdPrO
+i
+i
+the case of the elpd, for example, the mean is computed as
+error as
+
+Pntest
+i=1
+
+∆i , and the standard
+
+v
+(
+)2
+u
+n
+test
+test
+u ntest nX
+X
+1
+t
+∆i −
+∆j .
+ntest − 1 i=1
+n j=1
+
+In Figure 2 we rescale both metrics so that negative values indicate that the PrO posterior
+induces better predictive performance. The continuously ranked probability score (CRPS)
+was approximated using posterior samples and an empirical cumulative distribution function using the properscoring package in Python.
+The MMD was estimated using m = 32 Monte Carlo samples, and the Wasserstein
+gradient flow was run using p = 16 particles and λn = n1/2 for 4, 000 iterations, while
+MALA was run with dt = 10−4 also for 4, 000 iterations after 96, 000 warmup iterations to
+ensure convergence.
+
+D.4.1
+
+Sensitivity of the Wasserstein gradient flow
+
+In Figure 14 we show the sensitivity of the kernel gradient discrepancy (a diagnostic of the
+quality of the posterior samples) and two predictive scores to the choice of the number of
+particles and step size in a linear regression example. We sample n = 500 data from the
+CR setting described in Section 2, and then fit the PrO posterior with p = {21 , 22 , . . . , 26 }
+particles and dt between 0.1 and 0.0001. In each case, we set λn = n1/2 and run the
+WGF for 10, 000 iterations and estimate the MMD with m = 32 Monte Carlo samples. In
+Figure 14 we report the mean of the kernel gradient discrepancy (KGD), and predictive
+negative log likelihood (NLL) and MMD from 10 fold cross-validation. All metrics are
+improved as dt is smaller, and as the number of particles grows. We observed here, and in
+
+68
+
+other experiments, that as long as the number of particles is sufficiently large to capture
+multi-modal behaviour in the data, the step size becomes important to tune appropriately.
+And that the relationship relationship between predictive performance and step size is not
+always linear. This observation led us to choose p of the order ≈ 25 , and optimise the step
+size in all experiments with the tuning-free FUSE schedule (Sharrock and Nemeth, 2025).
+
+(a) Posterior diagnostic.
+
+(b) Predictive metrics.
+Figure 14: Synthetic linear regression example.
+
+D.5
+
+Binary classification example
+
+We simulated n = 1, 000 in the manner described in Section 5.1, and fit all models with
+λn = n1/2 . The PrO posterior was run with p = 64 particles for 10, 000 iterations. MALA
+was run for 4, 000 steps with dt = 10−4 .
+
+D.6
+
+River water flow example
+
+We fit an AR(7) model with Student-t prior over the intercept β, and Minnesota-style
+priors over the regression coefficients θ:
+Π(β) ∼ t3 (0, 12 )
+
+
+1
+Π(θj ) ∼ N 0, 2 ,
+j
+69
+
+j = 1, . . . 7.
+
+The PrO posterior was run with p = 50 particles for 10, 000 iterations. MALA was run
+for 4, 000 steps after 46, 000 warmup iterations, with dt = 10−6 . The MMD was estimated
+with m = 32 Monte Carlo samples, and both models were fit with λn = n1/2 .
+
+D.7
+
+Time series cross-validation
+
+Following Bürkner et al. (2020), suppose we have T observations from a time series,
+yi , . . . , yT , and let L be the minimum number of observations from the series that we will
+require before making predictions for future data. Then we want to evaluate the predictive
+performance of M one-step-ahead predictions made by the model, starting with its perforR
+mance on the L + 1-th datum: Pθ (yL+1 )dQn (θ | y1:L ). For instance, the leave-future-out
+cross-validated one-step-ahead log score is given as
+T −1
+X
+
+Z
+log
+
+Pθ (yi+1 | y1:i )dQn (θ | y1:i ),
+
+i=L
+
+and we compute the MMD2 and RMSE similarly: fitting the model on i data and evaluating
+on the the i + 1-th datum because incrementing the index i by one until we have no more
+observations on which to evaluate. This procedure is elegantly visualised in Figure 1 of
+Bürkner et al. (2020).
+
+D.8
+
+Conditional auto-regression example
+
+The PrO posterior under the MMD was run with p = 16 particles for 2, 000 iterations.
+MALA was run for 4, 000 steps after 96, 000 warmup iterations, with dt = 10−6 . The MMD
+was estimated with m = 32 Monte Carlo samples, and both models were fit with λn = n1/2 .
+In the case of the log score, the Gibbs posterior is fit with the same hyper-parameters as
+described above, while the PrO posterior is now fit with p = 128 particles with 4, 000
+iterations.
+70
+
+Figure 15: The empirical data distribution of the median housing value by census tract.
+
+E
+
+Computation
+
+E.1
+
+Examples: MMD and logarithmic score
+
+Our above development recovers the algorithm of Shen et al. (2025) for the special case
+of squared MMD. Here, elementary calculations show that for LMMD (ϑ, θ; x) = ⟨µ(Pϑ ) −
+µ(δx ), µ(Pθ ) − µ(δx )⟩H and ∇1 LMMD (ϑ, θ; x) denoting its gradient with respect to ϑ,
+n
+
+1X
+W(Q)[ϑ] =
+n i=1
+
+Z
+∇1 LMMD (ϑ, θ; xi ) dQ(θ),
+
+so that the evolution equations take the form
+
+
+
+
+p
+n
+
+ 1
+X λn X
+√
+(j)
+(j)
+(ℓ)
+(j)
+(j)
+∇1 LMMD (ϑt , ϑt ; xi ) − ∇ϑ log dΠ(ϑt ) dt + 2dBt .
+dϑt = −
+
+
+(p
+−
+1)
+n
+
+
+i=1
+ℓ=1
+ℓ̸=j
+
+For the logarithmic scoring rule, one instead finds that
+n
+
+1 X ∇ϑ dPϑ (xi )
+R
+W(q)[ϑ] =
+,
+n i=1 dPθ (xi )dQ(θ)
+so that the evolution equations are recovered as
+
+
+n
+λ X
+
+∇
+dP
+(j) (xi )
+√
+ϑ
+ϑt
+n
+(j)
+(j)
+(j)
+P
+dϑt = −
+−
+∇
+log
+dΠ(ϑ
+)
+dt
++
+2dBt .
+ϑ
+t
+p
+1
+n
+
+ℓ=1 dPϑ(ℓ) (xi )
+i=1 (p−1)
+ℓ̸=j
+
+t
+
+71
+
+E.2
+
+Practicalities and Implementation
+
+To provide intuition about how the sampling algorithm described in this section differs
+from more conventional Bayesian computation procedures, Figure 12 compares it to the
+Metropolis adjusted Langevin algorithm (MALA; Roberts and Tweedie, 1996; Roberts and
+Rosenthal, 1998) on several normal location examples. While the p = 32 particles which
+target the PrO posterior are initialised randomly from the prior, they soon repel each
+other, and lead to a multi-modal distribution. In contrast, the single particle evolved
+according to MALA bounces around a singular mode.
+While the interacting particle approach has the distinct advantage of being able to
+sample from any PrO posterior, it introduces several hyper-parameters that may require
+careful tuning in practice. The most important of these are the step sizes for the discretisation of the underlying SDE, the number of particles p, as well as the exact choice of λn .
+Here, the choice of step size and the number of particles p constitute a direct trade-off
+between approximation quality and computational efficiency: choosing the step size too
+small or the number of particles too large will in principle increase accuracy, but do so
+at the cost of exploding computational cost and substantively slowed convergence. Determining what constituted an appropriate step size in particular, is non-trivial and an active
+area of research. Concurrently, Sharrock and Nemeth (2025) developed an adaptive step
+size schedule for sampling form mean-field Langevin dynamics by adaptively tuning the
+step size, which they call FUSE. We set the step size adaptively according to FUSE in
+all experiments. While the theoretical result those authors showed do not extend to the
+PrO posterior, our empirical results give promise that similar results are attainable. We
+leave this as an area of future research. The relationship between the dimensionality of
+Θ and the number of particles required for consistent estimation has been investigated in
+
+72
+
+the related family of Stein variational gradient descent algorithms by Banerjee et al. (2025,
+Theorems 1 and 4). While those authors found that the number of particles must scale
+polynomially or exponentially with the dimension of the problem, we observed that when
+the step size is chosen with FUSE that much fewer particles are required. While little is
+known about choosing these hyper-parameters in our setting, recent work by Chazal et al.
+(2025) may finally provide a principled way for diagnosing this (see, e.g., Appendix D.4.1
+for a numerical demonstration). In contrast, we have clear ideas on how λn should be set
+from the theory developed in Section 3: for the case covered in Theorem 1 this is means
+setting λn ≍ n1/2 / log(n).
+
+73
+
+
