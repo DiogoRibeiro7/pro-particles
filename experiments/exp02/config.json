@@ -1,0 +1,29 @@
+{
+  "exp_id": "exp02",
+  "exp_name": "D.4 Linear regression (CR setting)",
+  "paper_id": "2510.01915v2",
+  "data": {
+    "regime": "CR",
+    "n": 500,
+    "n_test": 1000,
+    "sigma": 1.0,
+    "theta": [
+      1.0,
+      1.0
+    ],
+    "seed": 1,
+    "z_sampler": "standard_normal"
+  },
+  "method": {
+    "rule": "mmd2",
+    "lam_n": "sqrt_n",
+    "p": 16,
+    "K": 4000,
+    "B": 0,
+    "thin": 1,
+    "use_fuse": true,
+    "r_eps": 0.001,
+    "m_mmd": 32,
+    "kernel": "rbf_median_heuristic"
+  }
+}

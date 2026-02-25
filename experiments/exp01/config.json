@@ -1,0 +1,23 @@
+{
+  "exp_id": "exp01",
+  "exp_name": "D.1 Normal location (well-specified)",
+  "paper_id": "2510.01915v2",
+  "data": {
+    "regime": "well_specified",
+    "n": 1000,
+    "sigma": 1.0,
+    "seed": 0
+  },
+  "method": {
+    "rule": "mmd2",
+    "lam_n": "n",
+    "p": 32,
+    "K": 4000,
+    "B": 0,
+    "thin": 1,
+    "use_fuse": true,
+    "r_eps": 0.001,
+    "m_mmd": 128,
+    "kernel": "rbf_median_heuristic"
+  }
+}
