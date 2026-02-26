@@ -6,6 +6,12 @@ Linear regression (D.4, Appendix D.4).
 python experiments/exp02/run.py
 ```
 
+**Fast mode**
+```bash
+python experiments/exp02/run.py experiments/exp02/config_fast.json
+```
+Fast config reduces `n`, `n_test`, `p`, `K`, and `m_mmd`, and disables FUSE (uses constant `dt`) for speed.
+
 **Expected output**
 - `experiments/exp02/results.json` created.
 - `samples_method.npz` saved.

@@ -1,0 +1,20 @@
+{
+  "exp_id": "exp03",
+  "exp_name": "D.5 Binary classification (fast)",
+  "paper_id": "2510.01915v2",
+  "data": {
+    "n": 200,
+    "seed": 2
+  },
+  "method": {
+    "rule": "log_score",
+    "lam_n": "sqrt_n",
+    "p": 4,
+    "K": 40,
+    "B": 0,
+    "thin": 1,
+    "use_fuse": false,
+    "r_eps": 0.001,
+    "dt": 0.001
+  }
+}

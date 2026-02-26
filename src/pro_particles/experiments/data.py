@@ -63,7 +63,7 @@ def make_d2_palmer_penguins_data(
     """
     _ = seed  # deterministic; seed included for API consistency
     try:
-        import pandas as pd
+        import pandas  # noqa: F401
         from palmerpenguins import load_penguins
     except ImportError as exc:
         raise ImportError(

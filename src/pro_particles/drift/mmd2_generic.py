@@ -54,11 +54,11 @@ def pro_drift_mmd2_generic(
 
     for j in range(p):
         interaction = np.zeros((n, d), dtype=np.float64)
-        for l in range(p):
-            if leave_one_out and l == j:
+        for k in range(p):
+            if leave_one_out and k == j:
                 continue
             for i in range(n):
-                interaction[i] += grad_L_mmd(particles[j], particles[l], x_obs[i])
+                interaction[i] += grad_L_mmd(particles[j], particles[k], x_obs[i])
 
         if leave_one_out:
             interaction /= float(p - 1)

@@ -10,10 +10,9 @@ sys.path.insert(0, str(repo_root))
 
 import numpy as np
 
-from pro_particles.kernels.rbf import gaussian_kernel
-from pro_particles.models.normal_location import normal_logpdf
 from pro_particles.priors.gaussian import GaussianPrior
 from pro_particles.spec_impl import SpecConfig, run_particle_system
+from pro_particles.fast_impl.run_mmd2 import run_particle_system_mmd2_fast
 from pro_particles.metrics.metrics import (
     crps_ensemble,
     elpd_from_lppd,
@@ -62,7 +61,10 @@ def grad_L_mmd_linear_regression(
 
 def main() -> None:
     exp_dir = Path(__file__).resolve().parent
-    cfg = json.loads((exp_dir / "config.json").read_text())
+    cfg_path = exp_dir / "config.json"
+    if len(sys.argv) > 1:
+        cfg_path = Path(sys.argv[1])
+    cfg = json.loads(cfg_path.read_text())
 
     seed = int(cfg["data"]["seed"])
     n = int(cfg["data"]["n"])
@@ -101,7 +103,7 @@ def main() -> None:
 
     spec_cfg = SpecConfig(
         p=cfg["method"]["p"],
-        dt_t=lambda step: 1.0,
+        dt_t=lambda step: float(cfg["method"].get("dt", 1.0)),
         B=cfg["method"]["B"],
         K=cfg["method"]["K"],
         thin=cfg["method"]["thin"],
@@ -110,7 +112,7 @@ def main() -> None:
         sqrt2=np.sqrt(2.0),
     )
 
-    fuse_state = FuseState(r_eps=cfg["method"]["r_eps"])
+    fuse_state = FuseState(r_eps=cfg["method"]["r_eps"]) if cfg["method"]["use_fuse"] else None
 
     def grad_L(theta1, theta2, x):
         x_feat = x[:2]
@@ -142,19 +144,36 @@ def main() -> None:
         prior_grad = np.array([prior.grad_log_pdf(theta_) for theta_ in particles])
         return lam_n_val * wq - prior_grad
 
-    out = run_particle_system(
-        init_particles=init_particles,
-        x_obs=x_obs,
-        cfg=spec_cfg,
-        prior=GaussianPrior(prior_var=10.0),
-        rule="mmd2",
-        use_fuse=True,
-        leave_one_out=True,
-        grad_L_mmd=grad_L,
-        fuse_state=fuse_state,
-        fuse_grad_fn=fuse_grad_fn,
-        rng=rng,
-    )
+    if cfg["method"].get("impl", "fast") == "fast":
+        out = run_particle_system_mmd2_fast(
+            init_particles=init_particles,
+            x_obs=z_train,
+            y_obs=y_train[:, 0],
+            cfg=spec_cfg,
+            prior=GaussianPrior(prior_var=10.0),
+            sigma=sigma,
+            lengthscale=lengthscale,
+            m=cfg["method"]["m_mmd"],
+            use_fuse=cfg["method"]["use_fuse"],
+            leave_one_out=True,
+            fuse_state=fuse_state,
+            rng=rng,
+            model="linear_regression",
+        )
+    else:
+        out = run_particle_system(
+            init_particles=init_particles,
+            x_obs=x_obs,
+            cfg=spec_cfg,
+            prior=GaussianPrior(prior_var=10.0),
+            rule="mmd2",
+            use_fuse=cfg["method"]["use_fuse"],
+            leave_one_out=True,
+            grad_L_mmd=grad_L,
+            fuse_state=fuse_state,
+            fuse_grad_fn=fuse_grad_fn if cfg["method"]["use_fuse"] else None,
+            rng=rng,
+        )
 
     samples = out["time_avg_samples"]
     samples_path = exp_dir / "samples_method.npz"

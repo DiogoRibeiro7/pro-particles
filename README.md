@@ -29,3 +29,24 @@ poetry run python examples/normal_location_mmd2.py
 ```bash
 poetry run pytest -q
 ```
+
+## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
+
+## Citation
+
+If you use this code in your research, please cite:
+
+```bibtex
+@software{pro_particles,
+  title = {pro-particles: Interacting-particle sampler for Proper-Scoring-Rule posteriors},
+  author = {Ribeiro, Diogo},
+  year = {2026},
+  url = {https://github.com/yourusername/pro-particles}
+}
+```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

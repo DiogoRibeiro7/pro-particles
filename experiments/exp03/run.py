@@ -33,7 +33,10 @@ def sigmoid(z: np.ndarray) -> np.ndarray:
 
 def main() -> None:
     exp_dir = Path(__file__).resolve().parent
-    cfg = json.loads((exp_dir / "config.json").read_text())
+    cfg_path = exp_dir / "config.json"
+    if len(sys.argv) > 1:
+        cfg_path = Path(sys.argv[1])
+    cfg = json.loads(cfg_path.read_text())
 
     seed = int(cfg["data"]["seed"])
     n = int(cfg["data"]["n"])
@@ -46,7 +49,7 @@ def main() -> None:
 
     spec_cfg = SpecConfig(
         p=cfg["method"]["p"],
-        dt_t=lambda step: 1.0,
+        dt_t=lambda step: float(cfg["method"].get("dt", 1.0)),
         B=cfg["method"]["B"],
         K=cfg["method"]["K"],
         thin=cfg["method"]["thin"],
@@ -55,7 +58,7 @@ def main() -> None:
         sqrt2=np.sqrt(2.0),
     )
 
-    fuse_state = FuseState(r_eps=cfg["method"]["r_eps"])
+    fuse_state = FuseState(r_eps=cfg["method"]["r_eps"]) if cfg["method"]["use_fuse"] else None
 
     def logpdf(theta, x_obs):
         logits = x_obs @ theta
@@ -92,12 +95,12 @@ def main() -> None:
         cfg=spec_cfg,
         prior=GaussianPrior(prior_var=10.0),
         rule="log_score",
-        use_fuse=True,
+        use_fuse=cfg["method"]["use_fuse"],
         leave_one_out=True,
         logpdf=logpdf,
         grad_logpdf_theta=grad_logpdf_theta,
         fuse_state=fuse_state,
-        fuse_grad_fn=fuse_grad_fn,
+        fuse_grad_fn=fuse_grad_fn if cfg["method"]["use_fuse"] else None,
         rng=rng,
     )
 

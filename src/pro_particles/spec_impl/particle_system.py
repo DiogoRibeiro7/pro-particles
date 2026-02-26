@@ -110,13 +110,13 @@ def wq_mmd2_location_gaussian(
         mu_j = particles[j]
         interaction_sum = np.zeros(d, dtype=np.float64)
 
-        for l in range(p):
-            if leave_one_out and l == j:
+        for k in range(p):
+            if leave_one_out and k == j:
                 continue
-            mu_l = particles[l]
+            mu_l = particles[k]
 
             Y = mu_j[None, :] + sigma * eps_j[j]  # (m, d)
-            Yp = mu_l[None, :] + sigma * eps_l[l] # (m, d)
+            Yp = mu_l[None, :] + sigma * eps_l[k] # (m, d)
 
             grad_over_data = np.zeros(d, dtype=np.float64)
             for i in range(n):
@@ -177,7 +177,7 @@ def particle_system_step(
 
     p, d = particles.shape
 
-    wq = wq_fn(particles=particles, x_obs=x_obs, p=p, leave_one_out=leave_one_out)
+    wq = wq_fn(particles, x_obs, p, leave_one_out)
     prior_grad = np.empty((p, d), dtype=np.float64)
     for j in range(p):
         prior_grad[j] = prior.grad_log_pdf(particles[j])

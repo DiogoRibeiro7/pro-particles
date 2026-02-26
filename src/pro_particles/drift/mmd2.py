@@ -71,13 +71,13 @@ def pro_drift_mmd2_location_gaussian(
         mu_j = particles[j]
         interaction_sum = np.zeros(d, dtype=np.float64)
 
-        for l in range(p):
-            if l == j:
+        for k in range(p):
+            if k == j:
                 continue
-            mu_l = particles[l]
+            mu_l = particles[k]
 
             Y = mu_j[None, :] + sigma * eps_j[j]  # (m, d)
-            Yp = mu_l[None, :] + sigma * eps_l[l] # (m, d)
+            Yp = mu_l[None, :] + sigma * eps_l[k] # (m, d)
 
             grad_over_data = np.zeros(d, dtype=np.float64)
 

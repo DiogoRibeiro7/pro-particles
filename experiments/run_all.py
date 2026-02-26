@@ -2,19 +2,29 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 
-def run_exp(exp_dir: Path) -> None:
-    subprocess.check_call(["python", str(exp_dir / "run.py")])
+def run_exp(exp_dir: Path, cfg_path: Path | None) -> None:
+    cmd = ["python", str(exp_dir / "run.py")]
+    if cfg_path is not None:
+        cmd.append(str(cfg_path))
+    subprocess.check_call(cmd)
 
 
 def main() -> None:
     root = Path(__file__).resolve().parent
     exp_dirs = [root / "exp01", root / "exp02", root / "exp03"]
+    use_fast = False
+    if len(sys.argv) > 1 and sys.argv[1] == "--fast":
+        use_fast = True
 
     for exp in exp_dirs:
-        run_exp(exp)
+        cfg_path = None
+        if use_fast:
+            cfg_path = exp / "config_fast.json"
+        run_exp(exp, cfg_path)
 
     results = []
     for exp in exp_dirs:

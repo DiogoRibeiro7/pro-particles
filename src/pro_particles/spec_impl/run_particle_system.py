@@ -99,7 +99,7 @@ def run_particle_system(
             raise ValueError("Non-finite drift encountered.")
 
         if use_fuse:
-            grad_t = fuse_grad_fn(particles, x_obs, cfg.lam_n, prior)
+            grad_t = fuse_grad_fn(particles, x_obs, cfg.lam_n, prior)  # type: ignore[misc]
             eta_t = update_eta(
                 fuse_state,  # type: ignore[arg-type]
                 t=step,
