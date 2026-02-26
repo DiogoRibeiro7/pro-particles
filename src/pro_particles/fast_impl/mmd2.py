@@ -66,7 +66,7 @@ def wq_mmd2_gaussian_location_fast(
         term2 = (k_x[..., None] * diff_x / (lengthscale**2)).mean(axis=1)  # (p, d)
 
         if leave_one_out:
-            diag = np.diagonal(term1, axis1=0, axis2=1).T
+            diag = np.diagonal(term1, axis1=0, axis2=1)
             term1_sum = term1.sum(axis=1) - diag
             term1_avg = term1_sum / float(p - 1)
         else:

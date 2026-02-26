@@ -53,9 +53,10 @@ def run_particle_system_mmd2_fast(
     prev_particles = None
 
     for step in range(cfg.K):
+        particles_t = particles
         if model == "gaussian_location":
             drift = drift_mmd2_gaussian_location_fast(
-                particles=particles,
+                particles=particles_t,
                 x_obs=x_obs,
                 lam_n=cfg.lam_n,
                 prior=prior,
@@ -69,7 +70,7 @@ def run_particle_system_mmd2_fast(
             if y_obs is None:
                 raise ValueError("y_obs required for linear_regression.")
             drift = drift_mmd2_linear_regression_fast(
-                particles=particles,
+                particles=particles_t,
                 x=x_obs,
                 y=y_obs,
                 lam_n=cfg.lam_n,
@@ -88,7 +89,7 @@ def run_particle_system_mmd2_fast(
                 raise ValueError("fuse_state required.")
             if model == "gaussian_location":
                 wq = wq_mmd2_gaussian_location_fast(
-                    particles=particles,
+                    particles=particles_t,
                     x_obs=x_obs,
                     sigma=sigma,
                     lengthscale=lengthscale,
@@ -99,7 +100,7 @@ def run_particle_system_mmd2_fast(
             else:
                 assert y_obs is not None  # linear regression requires y
                 wq = wq_mmd2_linear_regression_fast(
-                    particles=particles,
+                    particles=particles_t,
                     x=x_obs,
                     y=y_obs,
                     sigma=sigma,
@@ -113,7 +114,7 @@ def run_particle_system_mmd2_fast(
             eta_t = update_eta(
                 fuse_state,
                 t=step,
-                particles_t=particles,
+                particles_t=particles_t,
                 particles_prev=prev_particles,
                 grad_t=grad_t,
             )
@@ -129,7 +130,7 @@ def run_particle_system_mmd2_fast(
         if step >= cfg.B and ((step - cfg.B) % cfg.thin == 0):
             saved.append(particles.copy())
 
-        prev_particles = particles.copy()
+        prev_particles = particles_t.copy()
 
     if saved:
         saved_particles = np.stack(saved, axis=0)

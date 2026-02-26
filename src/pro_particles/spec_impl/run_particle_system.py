@@ -98,12 +98,13 @@ def run_particle_system(
         if not np.all(np.isfinite(drift)):
             raise ValueError("Non-finite drift encountered.")
 
+        particles_t = particles
         if use_fuse:
-            grad_t = fuse_grad_fn(particles, x_obs, cfg.lam_n, prior)  # type: ignore[misc]
+            grad_t = fuse_grad_fn(particles_t, x_obs, cfg.lam_n, prior)  # type: ignore[misc]
             eta_t = update_eta(
                 fuse_state,  # type: ignore[arg-type]
                 t=step,
-                particles_t=particles,
+                particles_t=particles_t,
                 particles_prev=prev_particles,
                 grad_t=grad_t,
             )
@@ -124,7 +125,7 @@ def run_particle_system(
         if step >= cfg.B and ((step - cfg.B) % cfg.thin == 0):
             saved.append(particles.copy())
 
-        prev_particles = particles.copy()
+        prev_particles = particles_t.copy()
 
     if saved:
         saved_particles = np.stack(saved, axis=0)
