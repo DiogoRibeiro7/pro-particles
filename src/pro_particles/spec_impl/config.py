@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, ClassVar, Optional
 
 
 @dataclass(frozen=True)
@@ -11,6 +11,8 @@ class SpecConfig:
     See docs/spec.md §2–§4 for the parameters and their roles.
     """
 
+    SQRT2: ClassVar[float] = 1.4142135623730951
+
     p: int
     dt_t: Callable[[int], float]
     B: int
@@ -18,7 +20,6 @@ class SpecConfig:
     thin: int
     seed: Optional[int]
     lam_n: float
-    sqrt2: float
 
     def validate(self) -> None:
         """Validate config values (spec requires explicit choices).
@@ -35,5 +36,3 @@ class SpecConfig:
             raise ValueError("thin must be > 0.")
         if self.lam_n <= 0.0:
             raise ValueError("lam_n must be > 0.")
-        if self.sqrt2 <= 0.0:
-            raise ValueError("sqrt2 must be > 0.")

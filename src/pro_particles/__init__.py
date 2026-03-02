@@ -1,1 +1,14 @@
-__all__ = ["sampler", "drift", "kernels", "priors", "models"]
+__all__ = [
+    "baselines",
+    "diagnostics",
+    "drift",
+    "experiments",
+    "fast_impl",
+    "kernels",
+    "metrics",
+    "models",
+    "priors",
+    "sampler",
+    "schedules",
+    "spec_impl",
+]

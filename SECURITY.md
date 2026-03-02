@@ -8,7 +8,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability, please email the maintainers privately rather than opening a public issue.
+If you discover a security vulnerability, please email the maintainers privately at dfr@esmad.ipp.pt rather than opening a public issue.
 
 ### What to Include
 

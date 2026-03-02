@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import numpy as np
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from pro_particles.drift.mmd2_generic import pro_drift_mmd2_generic
 from pro_particles.priors.gaussian import GaussianPrior

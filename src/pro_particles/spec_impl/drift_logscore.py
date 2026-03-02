@@ -54,23 +54,20 @@ def drift_logscore(
         logp[j] = logpdf(theta_j, x_obs)
         gradlogp[j] = grad_logpdf_theta(theta_j, x_obs)
 
-    dP = np.exp(logp)
-    grad_dP = dP[:, :, None] * gradlogp
-
     drift = np.zeros((p, d), dtype=np.float64)
 
     for j in range(p):
         if leave_one_out:
             mask = np.ones(p, dtype=bool)
             mask[j] = False
-            denom = dP[mask].mean(axis=0)  # 1/(p-1) sum_{l!=j} dP_l(x_i)
+            lse = np.logaddexp.reduce(logp[mask], axis=0)
+            log_avg = lse - np.log(float(p - 1))
         else:
-            denom = dP.mean(axis=0)        # 1/p sum_{l} dP_l(x_i)
+            lse = np.logaddexp.reduce(logp, axis=0)
+            log_avg = lse - np.log(float(p))
 
-        if not np.all(np.isfinite(denom)) or np.any(denom == 0.0):
-            raise ValueError("Non-finite or zero denominator in W(Q) for log-score.")
-
-        wq = (grad_dP[j] / denom[:, None]).mean(axis=0)
+        ratio = np.exp(logp[j] - log_avg)
+        wq = (ratio[:, None] * gradlogp[j]).mean(axis=0)
 
         drift[j] = -(lam_n * wq - prior.grad_log_pdf(particles[j]))
 

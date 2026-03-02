@@ -59,7 +59,32 @@ def run_baseline_gaussian_conjugate(
     n_samples: int,
     seed: int,
 ) -> ArrayF:
-    """Sample from the analytic conjugate posterior."""
+    """Sample from the analytic conjugate posterior.
+
+    Parameters
+    ----------
+    x_obs:
+        Observations, shape (n, d).
+    sigma:
+        Observation noise scale.
+    prior_mean:
+        Prior mean, shape (d,).
+    prior_var:
+        Prior variance (scalar).
+    n_samples:
+        Number of posterior samples.
+    seed:
+        Random seed.
+
+    Returns
+    -------
+    ArrayF
+        Samples from the conjugate posterior, shape (n_samples, d).
+
+    References
+    ----------
+    Appendix D.1/D.2 (Gaussian location baseline).
+    """
     if n_samples <= 0:
         raise ValueError("n_samples must be > 0.")
 

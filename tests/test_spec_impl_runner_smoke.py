@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import numpy as np
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from pro_particles.models.normal_location import normal_grad_logpdf_theta, normal_logpdf
 from pro_particles.priors.gaussian import GaussianPrior
@@ -25,7 +20,6 @@ def test_run_particle_system_log_score_smoke() -> None:
         thin=10,
         seed=0,
         lam_n=1.0,
-        sqrt2=np.sqrt(2.0),
     )
 
     out = run_particle_system(
@@ -58,7 +52,6 @@ def test_run_particle_system_mmd2_smoke() -> None:
         thin=10,
         seed=1,
         lam_n=1.0,
-        sqrt2=np.sqrt(2.0),
     )
 
     def grad_L_mmd(theta, theta2, x):

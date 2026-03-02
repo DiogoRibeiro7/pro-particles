@@ -4,6 +4,7 @@ import hashlib
 import json
 import platform
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
@@ -42,9 +43,6 @@ def is_dirty() -> bool:
 
 
 def env_info() -> Dict[str, Any]:
-    import numpy as np
-    import sys
-
     return {
         "python": sys.version.split()[0],
         "numpy": np.__version__,

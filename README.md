@@ -43,7 +43,7 @@ If you use this code in your research, please cite:
   title = {pro-particles: Interacting-particle sampler for Proper-Scoring-Rule posteriors},
   author = {Ribeiro, Diogo},
   year = {2026},
-  url = {https://github.com/yourusername/pro-particles}
+  url = {https://github.com/diogoribeiro7/pro-particles}
 }
 ```
 

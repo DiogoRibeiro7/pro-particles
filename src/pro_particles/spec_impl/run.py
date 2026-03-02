@@ -1,7 +1,10 @@
+"""Low-level Euler–Maruyama loop with pluggable drift function."""
+
 from __future__ import annotations
 
 from typing import Callable, Dict, Optional, Tuple
 
+import logging
 import numpy as np
 from numpy.typing import NDArray
 
@@ -11,6 +14,7 @@ from pro_particles.schedules.fuse import FuseState, update_eta
 
 
 ArrayF = NDArray[np.float64]
+logger = logging.getLogger(__name__)
 
 
 def _ensure_2d(x: ArrayF, name: str) -> ArrayF:
@@ -48,6 +52,7 @@ def run_em(
 
     saved: list[ArrayF] = []
 
+    log_every = max(1, cfg.K // 10)
     for step in range(cfg.K):
         dt = cfg.dt_t(step)
         if dt <= 0.0:
@@ -55,12 +60,24 @@ def run_em(
 
         drift = drift_fn(particles, x_obs, cfg.lam_n, prior)
         if not np.all(np.isfinite(drift)):
+            logger.error("Non-finite drift at step %d/%d.", step + 1, cfg.K)
             raise ValueError("Non-finite drift encountered.")
 
+        if step % log_every == 0 or step == cfg.K - 1:
+            logger.info(
+                "step %d/%d | eta=%.6e | max|drift|=%.6e | mean|particles|=%.6e",
+                step + 1,
+                cfg.K,
+                dt,
+                float(np.max(np.abs(drift))),
+                float(np.mean(np.abs(particles))),
+            )
+
         noise = rng.normal(size=particles.shape)
-        particles = particles + drift * dt + (cfg.sqrt2 * np.sqrt(dt)) * noise
+        particles = particles + drift * dt + (SpecConfig.SQRT2 * np.sqrt(dt)) * noise
 
         if not np.all(np.isfinite(particles)):
+            logger.error("Non-finite particles at step %d/%d.", step + 1, cfg.K)
             raise ValueError("Non-finite particles encountered.")
 
         if step >= cfg.B and ((step - cfg.B) % cfg.thin == 0):
@@ -109,10 +126,12 @@ def run_em_fuse(
     saved: list[ArrayF] = []
     prev_particles: Optional[ArrayF] = None
 
+    log_every = max(1, cfg.K // 10)
     for step in range(cfg.K):
         particles_before = particles.copy()
         drift, grad_t = drift_and_grad_fn(particles, x_obs, cfg.lam_n, prior)
         if not np.all(np.isfinite(drift)):
+            logger.error("Non-finite drift at step %d/%d.", step + 1, cfg.K)
             raise ValueError("Non-finite drift encountered.")
 
         eta_t = update_eta(
@@ -123,10 +142,21 @@ def run_em_fuse(
             grad_t=grad_t,
         )
 
+        if step % log_every == 0 or step == cfg.K - 1:
+            logger.info(
+                "step %d/%d | eta=%.6e | max|drift|=%.6e | mean|particles|=%.6e",
+                step + 1,
+                cfg.K,
+                eta_t,
+                float(np.max(np.abs(drift))),
+                float(np.mean(np.abs(particles))),
+            )
+
         noise = rng.normal(size=particles.shape)
-        particles = particles + drift * eta_t + (cfg.sqrt2 * np.sqrt(eta_t)) * noise
+        particles = particles + drift * eta_t + (SpecConfig.SQRT2 * np.sqrt(eta_t)) * noise
 
         if not np.all(np.isfinite(particles)):
+            logger.error("Non-finite particles at step %d/%d.", step + 1, cfg.K)
             raise ValueError("Non-finite particles encountered.")
 
         if step == 0 and fuse_state.x1 is None:

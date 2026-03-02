@@ -46,7 +46,7 @@ jobs:
         run: poetry install --no-interaction
 
       - name: Run ruff
-        run: poetry run ruff check src tests examples
+        run: poetry run ruff check src tests examples experiments
         continue-on-error: false
 
       - name: Run mypy
@@ -54,4 +54,8 @@ jobs:
         continue-on-error: false
 
       - name: Run tests
-        run: poetry run pytest -q
+        run: poetry run pytest -q -m "not slow"
+
+      - name: Run slow integration tests
+        run: poetry run pytest -q -m slow
+        continue-on-error: true

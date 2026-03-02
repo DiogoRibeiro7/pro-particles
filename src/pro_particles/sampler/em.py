@@ -1,3 +1,5 @@
+"""Convenience API for quick experiments. Delegates to spec_impl internally."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -6,9 +8,10 @@ from typing import Callable, Literal, Optional, Tuple
 import numpy as np
 from numpy.typing import NDArray
 
-from pro_particles.drift.log_score import pro_drift_log_score
-from pro_particles.drift.mmd2 import pro_drift_mmd2_location_gaussian
+from pro_particles.kernels.rbf import grad_gaussian_kernel_wrt_first_arg
 from pro_particles.priors.gaussian import GaussianPrior
+from pro_particles.spec_impl.config import SpecConfig
+from pro_particles.spec_impl.run_particle_system import run_particle_system
 
 
 ArrayF = NDArray[np.float64]
@@ -67,35 +70,46 @@ def sample_pro_posterior(
     rng = np.random.default_rng(cfg.seed)
     p, d = particles.shape
 
-    collected: list[ArrayF] = []
+    spec_cfg = SpecConfig(
+        p=p,
+        dt_t=lambda _step: cfg.dt,
+        B=cfg.burn_in,
+        K=cfg.n_steps,
+        thin=cfg.thin,
+        seed=cfg.seed,
+        lam_n=lam_n,
+    )
 
-    for step in range(cfg.n_steps):
-        if mode == "log_score":
-            drift = pro_drift_log_score(
-                particles=particles,
-                x_obs=x_obs2,
-                lam_n=lam_n,
-                prior=prior,
-                logpdf=logpdf,  # type: ignore[arg-type]
-                grad_logpdf_theta=grad_logpdf_theta,  # type: ignore[arg-type]
-            )
-        else:
-            drift = pro_drift_mmd2_location_gaussian(
-                particles=particles,
-                x_obs=x_obs2,
-                lam_n=lam_n,
-                prior=prior,
-                sigma=sigma,
-                lengthscale=lengthscale,
-                m=m,
-                rng=rng,
-            )
+    grad_L_mmd = None
+    if mode == "mmd2":
+        if x_obs2.shape[1] != d:
+            raise ValueError("x_obs second dimension must match particle dimension d.")
 
-        noise = rng.normal(size=(p, d))
-        particles = particles + drift * cfg.dt + np.sqrt(2.0 * cfg.dt) * noise
+        def grad_L_mmd(theta: ArrayF, theta_prime: ArrayF, x_i: ArrayF) -> ArrayF:
+            eps = rng.normal(size=(m, d))
+            eps2 = rng.normal(size=(m, d))
+            y = theta[None, :] + sigma * eps
+            y2 = theta_prime[None, :] + sigma * eps2
+            grad_k_yy2 = grad_gaussian_kernel_wrt_first_arg(
+                y[:, None, :], y2[None, :, :], lengthscale
+            ).mean(axis=(0, 1))
+            grad_k_yx = grad_gaussian_kernel_wrt_first_arg(
+                y, x_i[None, :], lengthscale
+            ).mean(axis=0)
+            return grad_k_yy2 - grad_k_yx
 
-        if step >= cfg.burn_in and ((step - cfg.burn_in) % cfg.thin == 0):
-            collected.append(particles.copy())
+    out = run_particle_system(
+        init_particles=particles,
+        x_obs=x_obs2,
+        cfg=spec_cfg,
+        prior=prior,
+        rule=mode,
+        use_fuse=False,
+        leave_one_out=True,
+        logpdf=logpdf,
+        grad_logpdf_theta=grad_logpdf_theta,
+        grad_L_mmd=grad_L_mmd,
+        rng=rng,
+    )
 
-    samples = np.vstack(collected) if collected else np.empty((0, d), dtype=np.float64)
-    return particles, samples
+    return out["final_particles"], out["time_avg_samples"]

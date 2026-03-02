@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+# ruff: noqa: E402
+
 import json
 from pathlib import Path
 import sys
 
+# Path setup for standalone execution (not needed under `poetry run`)
 repo_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(repo_root / "src"))
 sys.path.insert(0, str(repo_root))
@@ -86,7 +89,6 @@ def main() -> None:
         thin=cfg["method"]["thin"],
         seed=seed,
         lam_n=lam_n,
-        sqrt2=np.sqrt(2.0),
     )
 
     fuse_state = FuseState(r_eps=cfg["method"]["r_eps"]) if cfg["method"]["use_fuse"] else None
@@ -108,11 +110,11 @@ def main() -> None:
         wq = np.zeros_like(particles)
         for j in range(p):
             acc = np.zeros((n, particles.shape[1]), dtype=np.float64)
-            for l in range(p):
-                if l == j:
+            for ell in range(p):
+                if ell == j:
                     continue
                 for i in range(n):
-                    acc[i] += grad_L(particles[j], particles[l], x[i])
+                    acc[i] += grad_L(particles[j], particles[ell], x[i])
             acc /= float(p - 1)
             wq[j] = acc.mean(axis=0)
         prior_grad = np.array([prior.grad_log_pdf(theta) for theta in particles])

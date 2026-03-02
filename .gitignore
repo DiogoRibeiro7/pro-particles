@@ -119,6 +119,10 @@ venv.bak/
 # mkdocs documentation
 /site
 
+# Experiment artifacts
+results.json
+samples_method.npz
+
 # mypy
 .mypy_cache/
 .dmypy.json

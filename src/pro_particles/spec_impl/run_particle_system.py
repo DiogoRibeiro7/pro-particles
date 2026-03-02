@@ -1,7 +1,10 @@
+"""Full-featured runner supporting all scoring rules and FUSE schedule."""
+
 from __future__ import annotations
 
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Optional, Protocol
 
+import logging
 import numpy as np
 from numpy.typing import NDArray
 
@@ -13,6 +16,19 @@ from pro_particles.spec_impl.drift_mmd2 import drift_mmd2
 
 
 ArrayF = NDArray[np.float64]
+logger = logging.getLogger(__name__)
+
+
+class FuseGradFn(Protocol):
+    def __call__(
+        self,
+        particles: ArrayF,
+        x_obs: ArrayF,
+        lam_n: float,
+        prior: GaussianPrior,
+    ) -> ArrayF:
+        """Return ∇U(x) = λ_n W(Q)[θ] - ∇log π(θ), shape (p, d)."""
+        ...
 
 
 def _ensure_2d(x: ArrayF, name: str) -> ArrayF:
@@ -36,11 +52,20 @@ def run_particle_system(
     grad_logpdf_theta: Optional[Callable[[ArrayF, ArrayF], ArrayF]] = None,
     grad_L_mmd: Optional[Callable[[ArrayF, ArrayF, ArrayF], ArrayF]] = None,
     fuse_state: Optional[FuseState] = None,
-    fuse_grad_fn: Optional[Callable[[ArrayF, ArrayF, float, GaussianPrior], ArrayF]] = None,
+    fuse_grad_fn: Optional[FuseGradFn] = None,
     rng: Optional[np.random.Generator] = None,
 ) -> Dict[str, ArrayF]:
     """Paper-faithful runner for all scoring rules (docs/spec.md, docs/scoring_rules.md).
 
+    Parameters
+    ----------
+    fuse_grad_fn:
+        Computes ∇U(x) = λ_n W(Q)[θ] - ∇log π(θ) for all particles.
+        This is the POTENTIAL GRADIENT, not the drift. The drift is -∇U(x).
+        Must return array of shape (p, d).
+
+    Notes
+    -----
     - Discretisation and averaging follow docs/spec.md §2–§3.
     - Rule-specific drift follows docs/scoring_rules.md.
     - If use_fuse is True, step size is updated per docs/fuse_spec.md (Algorithm 1).
@@ -74,6 +99,7 @@ def run_particle_system(
     saved: list[ArrayF] = []
     prev_particles: Optional[ArrayF] = None
 
+    log_every = max(1, cfg.K // 10)
     for step in range(cfg.K):
         if rule == "log_score":
             drift = drift_logscore(
@@ -96,6 +122,7 @@ def run_particle_system(
             )
 
         if not np.all(np.isfinite(drift)):
+            logger.error("Non-finite drift at step %d/%d.", step + 1, cfg.K)
             raise ValueError("Non-finite drift encountered.")
 
         particles_t = particles
@@ -113,10 +140,21 @@ def run_particle_system(
             if eta_t <= 0.0:
                 raise ValueError("dt_t(step) must be > 0.")
 
+        if step % log_every == 0 or step == cfg.K - 1:
+            logger.info(
+                "step %d/%d | eta=%.6e | max|drift|=%.6e | mean|particles|=%.6e",
+                step + 1,
+                cfg.K,
+                eta_t,
+                float(np.max(np.abs(drift))),
+                float(np.mean(np.abs(particles))),
+            )
+
         noise = rng.normal(size=particles.shape)
-        particles = particles + drift * eta_t + (cfg.sqrt2 * np.sqrt(eta_t)) * noise
+        particles = particles + drift * eta_t + (SpecConfig.SQRT2 * np.sqrt(eta_t)) * noise
 
         if not np.all(np.isfinite(particles)):
+            logger.error("Non-finite particles at step %d/%d.", step + 1, cfg.K)
             raise ValueError("Non-finite particles encountered.")
 
         if use_fuse and step == 0 and fuse_state is not None and fuse_state.x1 is None:

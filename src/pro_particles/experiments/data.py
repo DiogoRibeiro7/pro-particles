@@ -23,6 +23,11 @@ def make_d1_normal_location_data(
     - mixture: N(-2, 1^2) with prob 0.2; N(2, 1^2) with prob 0.8
     - claw: N(-2,1^2), N(0,1^2), N(2,1^2) each with prob 1/3
     - heavy_tails: Student-t_1.5
+
+    Returns
+    -------
+    ArrayF
+        Observations, shape (n, 1).
     """
     if n <= 0:
         raise ValueError("n must be > 0.")
@@ -60,6 +65,11 @@ def make_d2_palmer_penguins_data(
     """D.2 Palmer penguins (Appendix D.2, p. 64).
 
     Loads bill length/depth (mm), centers to zero mean and scales to unit variance jointly.
+
+    Returns
+    -------
+    ArrayF
+        Standardized data, shape (n, 2).
     """
     _ = seed  # deterministic; seed included for API consistency
     try:
@@ -99,6 +109,11 @@ def make_d4_linear_regression_data(
     - T: eps_i ~ t_3(0, sigma^2)
     - CR: random coefficients: theta2 = 2 * (-1)^{xi_i}, xi_i ~ Ber(1/2)
     - NT: combined T + CR
+
+    Returns
+    -------
+    Tuple[ArrayF, ArrayF]
+        Covariates z (n, 2) and responses y (n, 1).
     """
     if n <= 0:
         raise ValueError("n must be > 0.")
@@ -140,6 +155,11 @@ def make_d5_binary_classification_data(
     - top-left (x0 < 0, x1 > 0): y = 0
     - bottom-left (x0 > 0, x1 < 0): y = 1
     - other quadrants: y ~ Ber(0.5)
+
+    Returns
+    -------
+    Tuple[ArrayF, ArrayF]
+        Covariates x (n, 2) and labels y (n, 1).
     """
     if n <= 0:
         raise ValueError("n must be > 0.")

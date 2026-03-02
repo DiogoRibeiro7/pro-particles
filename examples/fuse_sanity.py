@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
+# Path setup for standalone execution (not needed under `poetry run`)
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from pro_particles.models.normal_location import normal_grad_logpdf_theta, normal_logpdf
@@ -39,7 +40,6 @@ def main() -> None:
         thin=5,
         seed=0,
         lam_n=1.0,
-        sqrt2=np.sqrt(2.0),
     )
 
     fuse_state = FuseState(r_eps=1e-3)

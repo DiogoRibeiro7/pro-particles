@@ -1,7 +1,10 @@
+"""Vectorized MMD²-specific runner for performance-critical use."""
+
 from __future__ import annotations
 
 from typing import Dict, Optional
 
+import logging
 import numpy as np
 from numpy.typing import NDArray
 
@@ -17,6 +20,7 @@ from pro_particles.spec_impl.config import SpecConfig
 
 
 ArrayF = NDArray[np.float64]
+logger = logging.getLogger(__name__)
 
 
 def run_particle_system_mmd2_fast(
@@ -35,7 +39,47 @@ def run_particle_system_mmd2_fast(
     rng: Optional[np.random.Generator] = None,
     model: str,
 ) -> Dict[str, ArrayF]:
-    """Fast MMD² runner with optional Fuse schedule."""
+    """Fast MMD² runner with optional Fuse schedule.
+
+    Parameters
+    ----------
+    init_particles:
+        Initial particles, shape (p, d).
+    x_obs:
+        Observations or covariates, shape (n, d).
+    y_obs:
+        Optional responses, shape (n,).
+    cfg:
+        Spec configuration.
+    prior:
+        Prior distribution.
+    sigma:
+        Observation noise scale.
+    lengthscale:
+        RBF kernel lengthscale.
+    m:
+        Monte Carlo samples per particle/observation.
+    use_fuse:
+        Whether to use the Fuse step size schedule.
+    leave_one_out:
+        Whether to use leave-one-out interaction.
+    fuse_state:
+        Fuse state (required if use_fuse is True).
+    rng:
+        Random number generator.
+    model:
+        "gaussian_location" or "linear_regression".
+
+    Returns
+    -------
+    Dict[str, ArrayF]
+        Dictionary with final particles and time-averaged samples.
+
+    References
+    ----------
+    docs/scoring_rules.md (p. 71).
+    docs/fuse_spec.md (Algorithm 1).
+    """
     cfg.validate()
 
     particles = init_particles.astype(np.float64, copy=True)
@@ -52,6 +96,7 @@ def run_particle_system_mmd2_fast(
     saved = []
     prev_particles = None
 
+    log_every = max(1, cfg.K // 10)
     for step in range(cfg.K):
         particles_t = particles
         if model == "gaussian_location":
@@ -84,6 +129,10 @@ def run_particle_system_mmd2_fast(
         else:
             raise ValueError("Unknown model.")
 
+        if not np.all(np.isfinite(drift)):
+            logger.error("Non-finite drift at step %d/%d.", step + 1, cfg.K)
+            raise ValueError("Non-finite drift encountered.")
+
         if use_fuse:
             if fuse_state is None:
                 raise ValueError("fuse_state required.")
@@ -110,6 +159,7 @@ def run_particle_system_mmd2_fast(
                     leave_one_out=leave_one_out,
                 )
             prior_grad = np.array([prior.grad_log_pdf(theta) for theta in particles])
+            # grad_t = ∇U(x) = λ_n W(Q) - ∇log π (potential gradient, not drift)
             grad_t = cfg.lam_n * wq - prior_grad
             eta_t = update_eta(
                 fuse_state,
@@ -121,8 +171,22 @@ def run_particle_system_mmd2_fast(
         else:
             eta_t = cfg.dt_t(step)
 
+        if step % log_every == 0 or step == cfg.K - 1:
+            logger.info(
+                "step %d/%d | eta=%.6e | max|drift|=%.6e | mean|particles|=%.6e",
+                step + 1,
+                cfg.K,
+                eta_t,
+                float(np.max(np.abs(drift))),
+                float(np.mean(np.abs(particles))),
+            )
+
         noise = rng.normal(size=particles.shape)
-        particles = particles + drift * eta_t + (cfg.sqrt2 * np.sqrt(eta_t)) * noise
+        particles = particles + drift * eta_t + (SpecConfig.SQRT2 * np.sqrt(eta_t)) * noise
+
+        if not np.all(np.isfinite(particles)):
+            logger.error("Non-finite particles at step %d/%d.", step + 1, cfg.K)
+            raise ValueError("Non-finite particles encountered.")
 
         if use_fuse and step == 0 and fuse_state is not None and fuse_state.x1 is None:
             fuse_state.x1 = particles.copy()

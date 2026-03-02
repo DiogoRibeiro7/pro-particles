@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import numpy as np
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from pro_particles.models.normal_location import normal_grad_logpdf_theta, normal_logpdf
 from pro_particles.priors.gaussian import GaussianPrior
@@ -26,7 +21,6 @@ def test_spec_impl_smoke() -> None:
         thin=5,
         seed=0,
         lam_n=1.0,
-        sqrt2=np.sqrt(2.0),
     )
 
     def drift_fn(particles, x, lam_n, prior):

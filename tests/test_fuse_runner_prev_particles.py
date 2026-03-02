@@ -1,12 +1,8 @@
 from __future__ import annotations
 
 import math
-import sys
-from pathlib import Path
 
 import numpy as np
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from pro_particles.priors.gaussian import GaussianPrior
 from pro_particles.schedules.fuse import FuseState
@@ -23,12 +19,11 @@ def test_fuse_runner_uses_prev_particles_for_movement() -> None:
     cfg = SpecConfig(
         p=p,
         dt_t=lambda step: 1e-2,
-        B=2,
+        B=1,
         K=2,
         thin=1,
         seed=0,
         lam_n=5.0,
-        sqrt2=math.sqrt(2.0),
     )
 
     prior = GaussianPrior(prior_var=2.0)
@@ -47,6 +42,7 @@ def test_fuse_runner_uses_prev_particles_for_movement() -> None:
         )
         return -drift  # grad_t = lam_n * wq - prior_grad
 
+    fuse_state = FuseState(r_eps=1e-12)
     rng_expected = np.random.default_rng(999)
     drift0 = drift_mmd2(
         particles=init_particles,
@@ -57,10 +53,9 @@ def test_fuse_runner_uses_prev_particles_for_movement() -> None:
         leave_one_out=True,
     )
     noise0 = rng_expected.normal(size=init_particles.shape)
-    x1 = init_particles + drift0 * cfg.dt_t(0) + (cfg.sqrt2 * math.sqrt(cfg.dt_t(0))) * noise0
-    movement = float(np.mean((x1 - init_particles) ** 2))
-
-    fuse_state = FuseState(r_eps=1e-12)
+    eta0 = fuse_state.r_eps
+    x1 = init_particles + drift0 * eta0 + (SpecConfig.SQRT2 * math.sqrt(eta0)) * noise0
+    movement = float(np.mean(np.sum((x1 - init_particles) ** 2, axis=1)))
     rng_run = np.random.default_rng(999)
 
     run_particle_system(

@@ -102,6 +102,22 @@ def crps_ensemble(
     """CRPS via properscoring (D.4, p. 68).
 
     Uses properscoring.crps_ensemble if available.
+
+    Parameters
+    ----------
+    y_true:
+        Ground-truth values, shape (n,).
+    samples:
+        Ensemble samples, shape (S, n).
+
+    Returns
+    -------
+    ArrayF
+        CRPS values per observation, shape (n,).
+
+    References
+    ----------
+    docs/scoring_rules.md (p. 68).
     """
     if y_true.ndim != 1:
         raise ValueError("y_true must be 1D.")

@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import numpy as np
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from pro_particles.baselines.gaussian_conjugate import gaussian_conjugate_posterior
 from pro_particles.baselines.mala import run_baseline_mala_gaussian_location
