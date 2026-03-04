@@ -71,3 +71,71 @@ def test_run_particle_system_mmd2_smoke() -> None:
 
     assert out["final_particles"].shape == (cfg.p, 2)
     assert np.isfinite(out["final_particles"]).all()
+
+
+def test_run_particle_system_energy_score_smoke() -> None:
+    rng = np.random.default_rng(2)
+    x_obs = rng.normal(size=(10, 2)).astype(np.float64)
+    init_particles = rng.normal(size=(4, 2)).astype(np.float64)
+
+    cfg = SpecConfig(
+        p=4,
+        dt_t=lambda step: 1e-3,
+        B=5,
+        K=500,
+        thin=10,
+        seed=2,
+        lam_n=1.0,
+    )
+
+    def grad_L_energy(theta, theta2, x):
+        return (theta - theta2) + 0.05 * x
+
+    out = run_particle_system(
+        init_particles=init_particles,
+        x_obs=x_obs,
+        cfg=cfg,
+        prior=GaussianPrior(prior_var=5.0),
+        rule="energy_score",
+        use_fuse=False,
+        leave_one_out=True,
+        grad_L_energy=grad_L_energy,
+        rng=rng,
+    )
+
+    assert out["final_particles"].shape == (cfg.p, 2)
+    assert np.isfinite(out["final_particles"]).all()
+
+
+def test_run_particle_system_crps_smoke() -> None:
+    rng = np.random.default_rng(3)
+    x_obs = rng.normal(size=(12, 1)).astype(np.float64)
+    init_particles = rng.normal(size=(5, 1)).astype(np.float64)
+
+    cfg = SpecConfig(
+        p=5,
+        dt_t=lambda step: 1e-3,
+        B=5,
+        K=500,
+        thin=10,
+        seed=3,
+        lam_n=1.0,
+    )
+
+    def grad_L_crps(theta, theta2, x):
+        return (theta - theta2) + 0.02 * x
+
+    out = run_particle_system(
+        init_particles=init_particles,
+        x_obs=x_obs,
+        cfg=cfg,
+        prior=GaussianPrior(prior_var=5.0),
+        rule="crps",
+        use_fuse=False,
+        leave_one_out=True,
+        grad_L_crps=grad_L_crps,
+        rng=rng,
+    )
+
+    assert out["final_particles"].shape == (cfg.p, 1)
+    assert np.isfinite(out["final_particles"]).all()
