@@ -13,6 +13,8 @@ from pro_particles.schedules.fuse import FuseState, update_eta
 from pro_particles.spec_impl.config import SpecConfig
 from pro_particles.spec_impl.drift_logscore import drift_logscore
 from pro_particles.spec_impl.drift_mmd2 import drift_mmd2
+from pro_particles.spec_impl.drift_energy_score import drift_energy_score
+from pro_particles.spec_impl.drift_crps import drift_crps
 
 
 ArrayF = NDArray[np.float64]
@@ -51,6 +53,8 @@ def run_particle_system(
     logpdf: Optional[Callable[[ArrayF, ArrayF], ArrayF]] = None,
     grad_logpdf_theta: Optional[Callable[[ArrayF, ArrayF], ArrayF]] = None,
     grad_L_mmd: Optional[Callable[[ArrayF, ArrayF, ArrayF], ArrayF]] = None,
+    grad_L_energy: Optional[Callable[[ArrayF, ArrayF, ArrayF], ArrayF]] = None,
+    grad_L_crps: Optional[Callable[[ArrayF, ArrayF, ArrayF], ArrayF]] = None,
     fuse_state: Optional[FuseState] = None,
     fuse_grad_fn: Optional[FuseGradFn] = None,
     rng: Optional[np.random.Generator] = None,
@@ -87,6 +91,12 @@ def run_particle_system(
     elif rule == "mmd2":
         if grad_L_mmd is None:
             raise ValueError("grad_L_mmd is required for mmd2.")
+    elif rule == "energy_score":
+        if grad_L_energy is None:
+            raise ValueError("grad_L_energy is required for energy_score.")
+    elif rule == "crps":
+        if grad_L_crps is None:
+            raise ValueError("grad_L_crps is required for crps.")
     else:
         raise ValueError(f"Unsupported rule: {rule}.")
 
@@ -111,13 +121,31 @@ def run_particle_system(
                 grad_logpdf_theta=grad_logpdf_theta,  # type: ignore[arg-type]
                 leave_one_out=leave_one_out,
             )
-        else:
+        elif rule == "mmd2":
             drift = drift_mmd2(
                 particles=particles,
                 x_obs=x_obs,
                 lam_n=cfg.lam_n,
                 prior=prior,
                 grad_L_mmd=grad_L_mmd,  # type: ignore[arg-type]
+                leave_one_out=leave_one_out,
+            )
+        elif rule == "energy_score":
+            drift = drift_energy_score(
+                particles=particles,
+                x_obs=x_obs,
+                lam_n=cfg.lam_n,
+                prior=prior,
+                grad_L_energy=grad_L_energy,  # type: ignore[arg-type]
+                leave_one_out=leave_one_out,
+            )
+        else:
+            drift = drift_crps(
+                particles=particles,
+                x_obs=x_obs,
+                lam_n=cfg.lam_n,
+                prior=prior,
+                grad_L_crps=grad_L_crps,  # type: ignore[arg-type]
                 leave_one_out=leave_one_out,
             )
 

@@ -22,6 +22,8 @@ poetry install
 ```bash
 poetry run python examples/normal_location_log_score.py
 poetry run python examples/normal_location_mmd2.py
+poetry run python examples/normal_location_energy_score.py
+poetry run python examples/normal_location_crps.py
 ```
 
 ## Run tests

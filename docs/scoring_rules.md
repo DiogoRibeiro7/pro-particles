@@ -82,3 +82,8 @@ d\vartheta_t^{(j)} = -\left\{ \frac{\lambda_n}{n}\sum_{i=1}^n
 **Other Scoring Rules Mentioned**
 - Spherical score, CRPS, energy score are listed as possible scoring rules; no W(Q) formula is given for these. (p. 5)
 - CRPS is used as an evaluation metric in experiments; no W(Q) or L(θ,θ';x) drift formula is provided. (p. 68)
+
+**Implementation Note (This Repo)**
+- We provide Monte Carlo, reparameterization-based drifts for energy score and CRPS in the NumPy-first sampler.
+  These are pragmatic extensions that mirror the MMD^2 interaction structure and are not derived from the paper.
+  See examples `examples/normal_location_energy_score.py` and `examples/normal_location_crps.py`.
