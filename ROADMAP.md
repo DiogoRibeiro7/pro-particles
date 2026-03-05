@@ -4,10 +4,13 @@ This roadmap captures planned feature development and priorities. It is a living
 
 ## Next (1–2 months)
 
-- Add PrO drift implementations for additional scoring rules (e.g., energy score, CRPS) with reference examples.
-- Improve MMD^2 support by adding kernels (RBF, Matérn) and bandwidth selection utilities.
-- Add a higher-level `Sampler` wrapper API with clear configuration, seeding, and diagnostics.
 - Expand documentation with a "Getting Started" tutorial and API reference pages.
+
+## Done
+
+- Add a higher-level `Sampler` wrapper API with clear configuration, seeding, and diagnostics.
+- Improve MMD^2 support by adding kernels (RBF, Matérn) and bandwidth selection utilities.
+- Add PrO drift implementations for additional scoring rules (e.g., energy score, CRPS) with reference examples.
 
 ## Near-Term (3–6 months)
 

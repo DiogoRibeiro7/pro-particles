@@ -9,6 +9,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from pro_particles.kernels.rbf import grad_gaussian_kernel_wrt_first_arg
+from pro_particles.kernels.matern import grad_matern_kernel_wrt_first_arg
 from pro_particles.priors.gaussian import GaussianPrior
 from pro_particles.spec_impl.config import SpecConfig
 from pro_particles.spec_impl.run_particle_system import run_particle_system
@@ -49,6 +50,7 @@ def sample_pro_posterior(
     sigma: float = 1.0,
     lengthscale: float = 1.0,
     m: int = 64,
+    kernel: Literal["rbf", "matern12", "matern32", "matern52"] = "rbf",
     eps: float = 1e-8,
 ) -> Tuple[ArrayF, ArrayF]:
     """Run the interacting particle system and return samples after burn-in."""
@@ -94,17 +96,28 @@ def sample_pro_posterior(
         if x_obs2.shape[1] != d:
             raise ValueError("x_obs second dimension must match particle dimension d.")
 
+        if kernel == "rbf":
+            def grad_kernel(y: ArrayF, z: ArrayF) -> ArrayF:
+                return grad_gaussian_kernel_wrt_first_arg(y, z, lengthscale)
+        elif kernel == "matern12":
+            def grad_kernel(y: ArrayF, z: ArrayF) -> ArrayF:
+                return grad_matern_kernel_wrt_first_arg(y, z, lengthscale, nu=0.5)
+        elif kernel == "matern32":
+            def grad_kernel(y: ArrayF, z: ArrayF) -> ArrayF:
+                return grad_matern_kernel_wrt_first_arg(y, z, lengthscale, nu=1.5)
+        elif kernel == "matern52":
+            def grad_kernel(y: ArrayF, z: ArrayF) -> ArrayF:
+                return grad_matern_kernel_wrt_first_arg(y, z, lengthscale, nu=2.5)
+        else:
+            raise ValueError("kernel must be one of {'rbf','matern12','matern32','matern52'}.")
+
         def grad_L_mmd(theta: ArrayF, theta_prime: ArrayF, x_i: ArrayF) -> ArrayF:
             eps = rng.normal(size=(m, d))
             eps2 = rng.normal(size=(m, d))
             y = theta[None, :] + sigma * eps
             y2 = theta_prime[None, :] + sigma * eps2
-            grad_k_yy2 = grad_gaussian_kernel_wrt_first_arg(
-                y[:, None, :], y2[None, :, :], lengthscale
-            ).mean(axis=(0, 1))
-            grad_k_yx = grad_gaussian_kernel_wrt_first_arg(
-                y, x_i[None, :], lengthscale
-            ).mean(axis=0)
+            grad_k_yy2 = grad_kernel(y[:, None, :], y2[None, :, :]).mean(axis=(0, 1))
+            grad_k_yx = grad_kernel(y, x_i[None, :]).mean(axis=0)
             return grad_k_yy2 - grad_k_yx
     if mode == "energy_score":
         if x_obs2.shape[1] != d:

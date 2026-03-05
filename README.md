@@ -36,6 +36,31 @@ poetry run pytest -q
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
+## Sampler API
+
+The higher-level sampler wrapper provides configuration, seeding, and diagnostics:
+
+```python
+from pro_particles.models.normal_location import normal_logpdf, normal_grad_logpdf_theta
+from pro_particles.priors.gaussian import GaussianPrior
+from pro_particles.sampler import ProSampler, SamplerConfig
+
+prior = GaussianPrior(prior_var=9.0)
+cfg = SamplerConfig(n_steps=1000, burn_in=200, dt=1e-3, thin=10, seed=0)
+
+sampler = ProSampler(
+    mode="log_score",
+    lam_n=2.0,
+    prior=prior,
+    cfg=cfg,
+    logpdf=lambda th, xx: normal_logpdf(th, xx, sigma=1.0),
+    grad_logpdf_theta=lambda th, xx: normal_grad_logpdf_theta(th, xx, sigma=1.0),
+)
+
+result = sampler.sample(init_particles=init_particles, x_obs=x_obs)
+ess = result.diagnostics.ess
+```
+
 ## Citation
 
 If you use this code in your research, please cite:
