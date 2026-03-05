@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -109,3 +109,70 @@ def effective_sample_size(samples: ArrayF) -> ArrayF:
         ess[j] = float(n / tau)
 
     return ess
+
+
+def split_rhat(samples: ArrayF) -> ArrayF:
+    """Split R-hat-like diagnostic using within/between-variance.
+
+    This treats each dimension independently and splits a single chain in half.
+    Returns R-hat per dimension, shape (d,).
+    """
+    if samples.ndim != 2:
+        raise ValueError("samples must be 2D (n, d).")
+    n, d = samples.shape
+    if n < 4:
+        raise ValueError("Need at least 4 samples for split R-hat.")
+
+    n_half = n // 2
+    if n_half < 2:
+        raise ValueError("Need at least 2 samples per half.")
+
+    first = samples[:n_half]
+    second = samples[-n_half:]
+    means = np.stack([first.mean(axis=0), second.mean(axis=0)], axis=0)
+    vars_ = np.stack([first.var(axis=0, ddof=1), second.var(axis=0, ddof=1)], axis=0)
+
+    w = vars_.mean(axis=0)
+    b = n_half * means.var(axis=0, ddof=1)
+    var_hat = ((n_half - 1) / n_half) * w + (b / n_half)
+
+    rhat = np.sqrt(var_hat / w)
+    return rhat.astype(np.float64)
+
+
+def trajectory_summary(
+    saved_particles: ArrayF, last_n: Optional[int] = None
+) -> Dict[str, ArrayF]:
+    """Summarize the trajectory across saved steps.
+
+    Returns per-dimension min/max/mean/std computed over step means.
+    """
+    if saved_particles.ndim != 3:
+        raise ValueError("saved_particles must be 3D (K, p, d).")
+    if last_n is not None and last_n <= 0:
+        raise ValueError("last_n must be > 0.")
+
+    if last_n is not None:
+        sp = saved_particles[-last_n:]
+    else:
+        sp = saved_particles
+
+    if sp.shape[0] == 0:
+        d = saved_particles.shape[2]
+        empty = np.empty((0, d), dtype=np.float64)
+        return {
+            "step_means": empty,
+            "mean": np.empty((d,), dtype=np.float64),
+            "std": np.empty((d,), dtype=np.float64),
+            "min": np.empty((d,), dtype=np.float64),
+            "max": np.empty((d,), dtype=np.float64),
+        }
+
+    step_means = sp.mean(axis=1)
+    return {
+        "step_means": step_means,
+        "mean": step_means.mean(axis=0),
+        "std": step_means.std(axis=0, ddof=0),
+        "min": step_means.min(axis=0),
+        "max": step_means.max(axis=0),
+    }

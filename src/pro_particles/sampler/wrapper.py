@@ -6,7 +6,13 @@ from typing import Callable, Dict, Literal, Optional
 import numpy as np
 from numpy.typing import NDArray
 
-from pro_particles.diagnostics.convergence import effective_sample_size, running_mean, trace_plot_data
+from pro_particles.diagnostics.convergence import (
+    effective_sample_size,
+    running_mean,
+    split_rhat,
+    trace_plot_data,
+    trajectory_summary,
+)
 from pro_particles.kernels.matern import grad_matern_kernel_wrt_first_arg
 from pro_particles.kernels.rbf import grad_gaussian_kernel_wrt_first_arg
 from pro_particles.priors.gaussian import GaussianPrior
@@ -23,6 +29,8 @@ class SamplerDiagnostics:
     trace: Dict[str, ArrayF]
     running_mean: ArrayF
     ess: ArrayF
+    rhat: ArrayF
+    trajectory: Dict[str, ArrayF]
 
 
 @dataclass(frozen=True)
@@ -209,7 +217,22 @@ class ProSampler:
         else:
             ess = np.full((particles.shape[1],), np.nan, dtype=np.float64)
 
-        diagnostics = SamplerDiagnostics(trace=trace, running_mean=run_mean, ess=ess)
+        if out["time_avg_samples"].shape[0] >= 4:
+            rhat = split_rhat(out["time_avg_samples"])
+        else:
+            rhat = np.full((particles.shape[1],), np.nan, dtype=np.float64)
+
+        trajectory = trajectory_summary(saved_particles) if saved_particles.size else {
+            "step_means": np.empty((0, particles.shape[1]), dtype=np.float64),
+            "mean": np.empty((particles.shape[1],), dtype=np.float64),
+            "std": np.empty((particles.shape[1],), dtype=np.float64),
+            "min": np.empty((particles.shape[1],), dtype=np.float64),
+            "max": np.empty((particles.shape[1],), dtype=np.float64),
+        }
+
+        diagnostics = SamplerDiagnostics(
+            trace=trace, running_mean=run_mean, ess=ess, rhat=rhat, trajectory=trajectory
+        )
         return SamplerResult(
             final_particles=out["final_particles"],
             saved_particles=saved_particles,

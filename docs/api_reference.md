@@ -53,6 +53,8 @@ Module: `pro_particles.diagnostics.convergence`
 - `trace_plot_data`
 - `running_mean`
 - `effective_sample_size`
+- `split_rhat`
+- `trajectory_summary`
 
 ## Drift (Spec Implementations)
 

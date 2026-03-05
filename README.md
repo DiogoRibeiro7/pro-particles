@@ -66,6 +66,13 @@ result = sampler.sample(init_particles=init_particles, x_obs=x_obs)
 ess = result.diagnostics.ess
 ```
 
+Diagnostics now also include split R-hat and trajectory summaries:
+
+```python
+rhat = result.diagnostics.rhat
+summary = result.diagnostics.trajectory
+```
+
 ### Adaptive Step Size
 
 Enable adaptive step-size in the sampler config:

@@ -8,6 +8,7 @@ This roadmap captures planned feature development and priorities. It is a living
 
 ## Done
 
+- Add convergence diagnostics (ESS, R-hat-like proxies) and trajectory summaries.
 - Implement adaptive step-size and stability checks for Euler–Maruyama.
 - Expand documentation with a "Getting Started" tutorial and API reference pages.
 - Add a higher-level `Sampler` wrapper API with clear configuration, seeding, and diagnostics.
@@ -16,7 +17,6 @@ This roadmap captures planned feature development and priorities. It is a living
 
 ## Near-Term (3–6 months)
 
-- Add convergence diagnostics (ESS, R-hat-like proxies) and trajectory summaries.
 - Provide GPU-friendly paths via JAX (optional backend) while keeping NumPy-first default.
 - Add more examples: Bayesian logistic regression and hierarchical Gaussian models.
 
