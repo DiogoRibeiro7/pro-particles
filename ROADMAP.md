@@ -4,10 +4,11 @@ This roadmap captures planned feature development and priorities. It is a living
 
 ## Next (1–2 months)
 
-- Expand documentation with a "Getting Started" tutorial and API reference pages.
+- TBD
 
 ## Done
 
+- Expand documentation with a "Getting Started" tutorial and API reference pages.
 - Add a higher-level `Sampler` wrapper API with clear configuration, seeding, and diagnostics.
 - Improve MMD^2 support by adding kernels (RBF, Matérn) and bandwidth selection utilities.
 - Add PrO drift implementations for additional scoring rules (e.g., energy score, CRPS) with reference examples.
