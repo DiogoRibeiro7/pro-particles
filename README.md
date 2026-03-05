@@ -44,6 +44,18 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 - Getting started: `docs/getting_started.md`
 - API reference (summary): `docs/api_reference.md`
 
+## Benchmarks
+
+```bash
+python benchmarks/run.py
+```
+
+## Paper-Ready Experiments
+
+```bash
+python experiments/paper/run_all_paper.py
+```
+
 ## Sampler API
 
 The higher-level sampler wrapper provides configuration, seeding, and diagnostics:

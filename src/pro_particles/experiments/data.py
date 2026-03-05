@@ -72,17 +72,9 @@ def make_d2_palmer_penguins_data(
         Standardized data, shape (n, 2).
     """
     _ = seed  # deterministic; seed included for API consistency
-    try:
-        import pandas  # noqa: F401
-        from palmerpenguins import load_penguins
-    except ImportError as exc:
-        raise ImportError(
-            "palmerpenguins and pandas are required for D.2 data."
-        ) from exc
+    from pro_particles.experiments.datasets import load_palmer_penguins
 
-    df = load_penguins()
-    cols = ["bill_length_mm", "bill_depth_mm"]
-    data = df[cols].dropna().to_numpy(dtype=np.float64)
+    data = load_palmer_penguins()
 
     mean = data.mean(axis=0, keepdims=True)
     std = data.std(axis=0, ddof=0, keepdims=True)

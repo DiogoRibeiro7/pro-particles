@@ -24,6 +24,8 @@ This roadmap captures planned feature development and priorities. It is a living
 
 ## Longer-Term
 
+## Done
+
 - Benchmark suite with reproducible performance comparisons.
 - Paper-ready experiment scripts and dataset loaders.
 
