@@ -10,7 +10,7 @@ from pro_particles.diagnostics.convergence import effective_sample_size, running
 from pro_particles.kernels.matern import grad_matern_kernel_wrt_first_arg
 from pro_particles.kernels.rbf import grad_gaussian_kernel_wrt_first_arg
 from pro_particles.priors.gaussian import GaussianPrior
-from pro_particles.spec_impl.config import SpecConfig
+from pro_particles.spec_impl.config import SpecConfig, AdaptiveStepConfig
 from pro_particles.spec_impl.run_particle_system import run_particle_system
 from pro_particles.sampler.em import SamplerConfig
 
@@ -94,6 +94,16 @@ class ProSampler:
         rng = np.random.default_rng(self.cfg.seed)
         p, d = particles.shape
 
+        adaptive_cfg = None
+        if self.cfg.adaptive_step:
+            adaptive_cfg = AdaptiveStepConfig(
+                enabled=True,
+                max_drift_step=self.cfg.max_drift_step,
+                dt_min=self.cfg.dt_min,
+                dt_max=self.cfg.dt_max,
+                eps=self.cfg.adapt_eps,
+            )
+
         spec_cfg = SpecConfig(
             p=p,
             dt_t=lambda _step: self.cfg.dt,
@@ -102,6 +112,7 @@ class ProSampler:
             thin=self.cfg.thin,
             seed=self.cfg.seed,
             lam_n=self.lam_n,
+            adaptive_step=adaptive_cfg,
         )
 
         grad_L_mmd = None

@@ -66,6 +66,24 @@ result = sampler.sample(init_particles=init_particles, x_obs=x_obs)
 ess = result.diagnostics.ess
 ```
 
+### Adaptive Step Size
+
+Enable adaptive step-size in the sampler config:
+
+```python
+cfg = SamplerConfig(
+    n_steps=3000,
+    burn_in=500,
+    dt=1e-3,
+    thin=10,
+    seed=0,
+    adaptive_step=True,
+    max_drift_step=0.5,
+    dt_min=1e-6,
+    dt_max=1e-1,
+)
+```
+
 ## Citation
 
 If you use this code in your research, please cite:

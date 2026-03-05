@@ -11,7 +11,7 @@ from numpy.typing import NDArray
 from pro_particles.kernels.rbf import grad_gaussian_kernel_wrt_first_arg
 from pro_particles.kernels.matern import grad_matern_kernel_wrt_first_arg
 from pro_particles.priors.gaussian import GaussianPrior
-from pro_particles.spec_impl.config import SpecConfig
+from pro_particles.spec_impl.config import SpecConfig, AdaptiveStepConfig
 from pro_particles.spec_impl.run_particle_system import run_particle_system
 
 
@@ -27,6 +27,11 @@ class SamplerConfig:
     dt: float = 1e-3
     thin: int = 10
     seed: Optional[int] = 0
+    adaptive_step: bool = False
+    max_drift_step: float = 0.5
+    dt_min: float = 1e-6
+    dt_max: float = 1e-1
+    adapt_eps: float = 1e-12
 
 
 def _ensure_2d(x: ArrayF, name: str) -> ArrayF:
@@ -79,6 +84,16 @@ def sample_pro_posterior(
     rng = np.random.default_rng(cfg.seed)
     p, d = particles.shape
 
+    adaptive_cfg = None
+    if cfg.adaptive_step:
+        adaptive_cfg = AdaptiveStepConfig(
+            enabled=True,
+            max_drift_step=cfg.max_drift_step,
+            dt_min=cfg.dt_min,
+            dt_max=cfg.dt_max,
+            eps=cfg.adapt_eps,
+        )
+
     spec_cfg = SpecConfig(
         p=p,
         dt_t=lambda _step: cfg.dt,
@@ -87,6 +102,7 @@ def sample_pro_posterior(
         thin=cfg.thin,
         seed=cfg.seed,
         lam_n=lam_n,
+        adaptive_step=adaptive_cfg,
     )
 
     grad_L_mmd = None

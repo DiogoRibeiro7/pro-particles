@@ -9,7 +9,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from pro_particles.priors.gaussian import GaussianPrior
-from pro_particles.spec_impl.config import SpecConfig
+from pro_particles.spec_impl.config import SpecConfig, AdaptiveStepConfig
 from pro_particles.schedules.fuse import FuseState, update_eta
 
 
@@ -54,14 +54,11 @@ def run_em(
 
     log_every = max(1, cfg.K // 10)
     for step in range(cfg.K):
-        dt = cfg.dt_t(step)
-        if dt <= 0.0:
-            raise ValueError("dt_t(step) must be > 0.")
-
         drift = drift_fn(particles, x_obs, cfg.lam_n, prior)
         if not np.all(np.isfinite(drift)):
             logger.error("Non-finite drift at step %d/%d.", step + 1, cfg.K)
             raise ValueError("Non-finite drift encountered.")
+        dt = _select_dt(cfg, step, drift)
 
         if step % log_every == 0 or step == cfg.K - 1:
             logger.info(
@@ -141,6 +138,7 @@ def run_em_fuse(
             particles_prev=prev_particles,
             grad_t=grad_t,
         )
+        eta_t = _clamp_eta_if_needed(cfg.adaptive_step, eta_t)
 
         if step % log_every == 0 or step == cfg.K - 1:
             logger.info(
@@ -179,3 +177,33 @@ def run_em_fuse(
         "saved_particles": saved_particles,
         "time_avg_samples": time_avg_samples,
     }
+
+
+def _select_dt(cfg: SpecConfig, step: int, drift: ArrayF) -> float:
+    dt = cfg.dt_t(step)
+    if dt <= 0.0:
+        raise ValueError("dt_t(step) must be > 0.")
+    if cfg.adaptive_step is None or not cfg.adaptive_step.enabled:
+        return dt
+    max_abs_drift = float(np.max(np.abs(drift)))
+    return _adapt_dt(cfg.adaptive_step, dt, max_abs_drift)
+
+
+def _adapt_dt(adapt: AdaptiveStepConfig, dt: float, max_abs_drift: float) -> float:
+    step_cap = adapt.max_drift_step / (max_abs_drift + adapt.eps)
+    dt_new = min(dt, step_cap)
+    if dt_new < adapt.dt_min:
+        dt_new = adapt.dt_min
+    if dt_new > adapt.dt_max:
+        dt_new = adapt.dt_max
+    return dt_new
+
+
+def _clamp_eta_if_needed(adapt: Optional[AdaptiveStepConfig], eta: float) -> float:
+    if adapt is None or not adapt.enabled:
+        return eta
+    if eta < adapt.dt_min:
+        return adapt.dt_min
+    if eta > adapt.dt_max:
+        return adapt.dt_max
+    return eta
