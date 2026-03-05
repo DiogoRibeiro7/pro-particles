@@ -3,10 +3,16 @@ from pro_particles.models.logistic_regression import (
     logistic_grad_logpdf_theta,
     logistic_logpdf,
 )
+from pro_particles.models.hierarchical_gaussian import (
+    hierarchical_gaussian_grad_logpdf_theta,
+    hierarchical_gaussian_logpdf,
+)
 
 __all__ = [
     "normal_logpdf",
     "normal_grad_logpdf_theta",
     "logistic_logpdf",
     "logistic_grad_logpdf_theta",
+    "hierarchical_gaussian_logpdf",
+    "hierarchical_gaussian_grad_logpdf_theta",
 ]

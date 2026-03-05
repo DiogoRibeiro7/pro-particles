@@ -8,6 +8,7 @@ This roadmap captures planned feature development and priorities. It is a living
 
 ## Done
 
+- Add example: hierarchical Gaussian model.
 - Add example: Bayesian logistic regression.
 - Add convergence diagnostics (ESS, R-hat-like proxies) and trajectory summaries.
 - Implement adaptive step-size and stability checks for Euler–Maruyama.
