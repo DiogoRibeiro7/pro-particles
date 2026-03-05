@@ -8,6 +8,7 @@ This roadmap captures planned feature development and priorities. It is a living
 
 ## Done
 
+- Add example: Bayesian logistic regression.
 - Add convergence diagnostics (ESS, R-hat-like proxies) and trajectory summaries.
 - Implement adaptive step-size and stability checks for Euler–Maruyama.
 - Expand documentation with a "Getting Started" tutorial and API reference pages.
@@ -18,7 +19,7 @@ This roadmap captures planned feature development and priorities. It is a living
 ## Near-Term (3–6 months)
 
 - Provide GPU-friendly paths via JAX (optional backend) while keeping NumPy-first default.
-- Add more examples: Bayesian logistic regression and hierarchical Gaussian models.
+- Add more examples: hierarchical Gaussian models.
 
 ## Longer-Term
 
