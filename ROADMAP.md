@@ -24,9 +24,12 @@ This roadmap captures planned feature development and priorities. It is a living
 
 ## Longer-Term
 
-- Support other interacting-particle variants (e.g., SVGD-like updates).
 - Benchmark suite with reproducible performance comparisons.
 - Paper-ready experiment scripts and dataset loaders.
+
+## Done
+
+- Support other interacting-particle variants (e.g., SVGD-like updates).
 
 ## How to Contribute
 

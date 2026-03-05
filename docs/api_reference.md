@@ -56,6 +56,14 @@ Module: `pro_particles.diagnostics.convergence`
 - `split_rhat`
 - `trajectory_summary`
 
+## Algorithms
+
+Module: `pro_particles.algorithms`
+
+- `SVGDConfig`
+- `run_svgd`
+- `svgd_update`
+
 ## Drift (Spec Implementations)
 
 Module: `pro_particles.spec_impl`

@@ -26,6 +26,7 @@ poetry run python examples/normal_location_energy_score.py
 poetry run python examples/normal_location_crps.py
 poetry run python examples/logistic_regression_log_score.py
 poetry run python examples/hierarchical_gaussian_log_score.py
+poetry run python examples/svgd_logistic_regression.py
 ```
 
 ## Run tests

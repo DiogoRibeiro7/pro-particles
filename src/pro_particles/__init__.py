@@ -4,6 +4,7 @@ __all__ = [
     "drift",
     "experiments",
     "fast_impl",
+    "algorithms",
     "kernels",
     "metrics",
     "models",
