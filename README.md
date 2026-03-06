@@ -27,6 +27,9 @@ poetry run python examples/normal_location_crps.py
 poetry run python examples/logistic_regression_log_score.py
 poetry run python examples/hierarchical_gaussian_log_score.py
 poetry run python examples/svgd_logistic_regression.py
+poetry run python examples/svgd_langevin_logistic_regression.py
+poetry run python examples/ksd_flow_normal_location.py
+poetry run python examples/wasserstein_langevin_normal_location.py
 ```
 
 ## Run tests

@@ -63,6 +63,13 @@ Module: `pro_particles.algorithms`
 - `SVGDConfig`
 - `run_svgd`
 - `svgd_update`
+- `SVGDLangevinConfig`
+- `run_svgd_langevin`
+- `KSDFlowConfig`
+- `run_ksd_flow`
+- `ksd_rbf`
+- `WassersteinLangevinConfig`
+- `run_wasserstein_langevin`
 
 ## Drift (Spec Implementations)
 
